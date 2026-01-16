@@ -1,0 +1,82 @@
+name: "CI"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  # Centralized version configuration
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      git-version: ${{ steps.plan.outputs.git-version }}
+      build: ${{ steps.plan.outputs.build }}
+      wheel-version: ${{ steps.plan.outputs.wheel-version }}
+    steps:
+      - name: "Plan"
+        id: plan
+        run: |
+          # Git version to build - single source of truth
+          GIT_VERSION="2.47.1"
+          echo "git-version=$GIT_VERSION" >> "$GITHUB_OUTPUT"
+
+          # Test PyPI needs unique versions, use timestamp-based .dev suffix
+          TIMESTAMP=$(date +%s)
+          BUILD="dev$TIMESTAMP"
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+          echo "wheel-version=$GIT_VERSION.$BUILD" >> "$GITHUB_OUTPUT"
+
+  build-binaries:
+    needs: plan
+    uses: ./.github/workflows/build-binaries.yml
+    with:
+      git-version: ${{ needs.plan.outputs.git-version }}
+
+  build-wheels:
+    needs: [plan, build-binaries]
+    uses: ./.github/workflows/build-wheels.yml
+    with:
+      git-version: ${{ needs.plan.outputs.git-version }}
+      build: ${{ needs.plan.outputs.build }}
+
+  test:
+    needs: build-wheels
+    uses: ./.github/workflows/test.yml
+
+  publish-test-pypi:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [plan, test]
+    uses: ./.github/workflows/publish-test-pypi.yml
+    with:
+      package-version: ${{ needs.plan.outputs.wheel-version }}
+    secrets: inherit
+
+  ci-success:
+    name: "all required jobs passed"
+    if: always()
+    needs:
+      - build-binaries
+      - build-wheels
+      - test
+      - publish-test-pypi
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Verify"
+        run: |
+          failing=$(echo "$NEEDS_JSON" | jq -r 'to_entries[] | select(.value.result != "success" and .value.result != "skipped") | "\(.key): \(.value.result)"')
+          if [ -n "$failing" ]; then
+            echo "$failing"
+            exit 1
+          fi
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}

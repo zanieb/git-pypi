@@ -1,0 +1,201 @@
+# Build Python wheels from Git binaries.
+name: "Build wheels"
+
+on:
+  workflow_call:
+    inputs:
+      git-version:
+        description: "Git version"
+        required: true
+        type: string
+      build:
+        description: "Build date as YYYYMMDD (default: today)"
+        required: false
+        type: string
+        default: ""
+      run-id:
+        description: "CI run ID to download binaries from (if not provided, uses current run's artifacts)"
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  build-macos-wheels:
+    name: "macos wheels on ${{ matrix.arch }}"
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-latest
+            target: macos_arm64
+          - arch: x86_64
+            runner: macos-13
+            target: macos_x86_64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: "Download binary artifacts (from current run)"
+        if: ${{ !inputs.run-id }}
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries-${{ matrix.target }}
+          path: build/output/
+
+      - name: "Download binary artifacts (from CI run)"
+        if: ${{ inputs.run-id }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download ${{ inputs.run-id }} --repo ${{ github.repository }} --name 'binaries-${{ matrix.target }}' --dir build/output/
+
+      - name: "Extract tarball"
+        run: |
+          cd build/output
+          mkdir -p ${{ matrix.target }}
+          tar -xvf *.tar -C ${{ matrix.target }}
+          rm -f *.tar
+          ls -la ${{ matrix.target }}/
+
+      - name: "Show library dependencies before delocate"
+        run: |
+          echo "=== Main git binary ==="
+          otool -L build/output/${{ matrix.target }}/bin/git
+          echo ""
+          echo "=== git-remote-https ==="
+          otool -L build/output/${{ matrix.target }}/libexec/git-core/git-remote-https || true
+
+      - name: "Build wheel"
+        run: |
+          uv run make_wheels.py \
+            --version ${{ inputs.git-version }} \
+            ${{ inputs.build && format('--build {0}', inputs.build) || '' }} \
+            --binary-dir build/output \
+            --platform ${{ matrix.target }}
+
+      - name: "Verify no non-system library dependencies"
+        run: uv run scripts/check_macos_wheel.py dist/*.whl
+
+      - name: "Upload wheel"
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.target }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+  build-linux-wheels:
+    name: "linux wheels"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: "Download binary artifacts (from current run)"
+        if: ${{ !inputs.run-id }}
+        uses: actions/download-artifact@v4
+        with:
+          path: build/output/
+          pattern: binaries-linux_*
+          merge-multiple: false
+
+      - name: "Download binary artifacts (from CI run)"
+        if: ${{ inputs.run-id }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download ${{ inputs.run-id }} --repo ${{ github.repository }} --pattern 'binaries-linux_*' --dir build/output/
+
+      - name: "Extract tarballs"
+        run: |
+          cd build/output
+          for dir in binaries-*; do
+            platform="${dir#binaries-}"
+            mkdir -p "$platform"
+            tar -xvf "$dir"/*.tar -C "$platform"
+            rm -rf "$dir"
+          done
+          ls -la
+
+      - name: "Build Linux wheels"
+        run: |
+          uv run make_wheels.py \
+            --version ${{ inputs.git-version }} \
+            ${{ inputs.build && format('--build {0}', inputs.build) || '' }} \
+            --binary-dir build/output \
+            --platform linux_x86_64 \
+            --platform linux_aarch64
+
+      - name: "Upload wheels"
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-linux
+          path: dist/*.whl
+          if-no-files-found: error
+
+  build-windows-wheels:
+    name: "windows wheels"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: "Build Windows wheels"
+        run: |
+          uv run make_wheels.py \
+            --version ${{ inputs.git-version }} \
+            ${{ inputs.build && format('--build {0}', inputs.build) || '' }} \
+            --platform win_amd64 \
+            --platform win_arm64 \
+            --platform win32
+
+      - name: "Upload wheels"
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-windows
+          path: dist/*.whl
+          if-no-files-found: error
+
+  merge-wheels:
+    name: "merge all wheels"
+    runs-on: ubuntu-latest
+    needs: [build-macos-wheels, build-linux-wheels, build-windows-wheels]
+    steps:
+      - name: "Download all wheel artifacts"
+        uses: actions/download-artifact@v4
+        with:
+          path: wheels/
+          pattern: wheel*
+          merge-multiple: true
+
+      - name: "List all wheels"
+        run: |
+          ls -la wheels/
+          echo ""
+          echo "=== SHA256 checksums ==="
+          for wheel in wheels/*.whl; do
+            shasum -a 256 "$wheel"
+          done
+
+      - name: "Upload merged wheels"
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels
+          path: wheels/*.whl
+          if-no-files-found: error

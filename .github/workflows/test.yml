@@ -1,0 +1,53 @@
+# Test Git wheels on each platform.
+name: "Test"
+
+on:
+  workflow_call:
+
+jobs:
+  test:
+    name: "${{ matrix.name }}"
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: manylinux_x86_64
+            runner: ubuntu-latest
+            wheel_pattern: "*manylinux*x86_64*.whl"
+          - name: macosx_arm64
+            runner: macos-latest
+            wheel_pattern: "*macosx*arm64*.whl"
+          - name: macosx_x86_64
+            runner: macos-15-intel
+            wheel_pattern: "*macosx*x86_64*.whl"
+          - name: win_amd64
+            runner: windows-latest
+            wheel_pattern: "*win_amd64*.whl"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: "Download wheels"
+        uses: actions/download-artifact@v4
+        with:
+          name: wheels
+          path: dist/
+
+      - name: "Install wheel and run tests"
+        shell: bash
+        run: |
+          wheel=$(ls dist/${{ matrix.wheel_pattern }} | head -1)
+          echo "Testing: $wheel"
+
+          # Create venv and install the wheel
+          uv venv .venv
+          uv pip install "$wheel"
+
+          # Get the git binary path from the installed package
+          git_bin=$(uv run python -c "import python_git_bin; print(python_git_bin.GIT_EXE)")
+          echo "Git binary: $git_bin"
+
+          # Run tests
+          uv run --group dev pytest test/ --git-bin "$git_bin" -v

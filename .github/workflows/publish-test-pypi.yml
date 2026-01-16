@@ -1,0 +1,81 @@
+# Publish wheels to Test PyPI.
+name: "Publish to Test PyPI"
+
+on:
+  workflow_call:
+    inputs:
+      package-version:
+        description: "Package version for test installation verification"
+        required: true
+        type: string
+
+jobs:
+  publish:
+    name: "publish"
+    runs-on: ubuntu-latest
+    environment: test-pypi
+    steps:
+      - name: "Download wheels"
+        uses: actions/download-artifact@v4
+        with:
+          name: wheels
+          path: dist/
+
+      - name: "List wheels"
+        run: ls -la dist/
+
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@v4
+
+      - name: "Publish to Test PyPI"
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        run: uv publish --publish-url https://test.pypi.org/legacy/ dist/*
+
+  test-install:
+    name: "test install"
+    runs-on: ubuntu-latest
+    needs: publish
+    timeout-minutes: 10
+
+    steps:
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@v4
+
+      - name: "Wait for package to be available"
+        run: |
+          until curl --silent "https://test.pypi.org/simple/python-git-bin/" | grep --quiet "${{ inputs.package-version }}"; do
+            echo "Waiting for python-git-bin ${{ inputs.package-version }} to appear on Test PyPI..."
+            sleep 10
+          done
+          # Additional sleep for consistency
+          echo "Package found, waiting for propagation..."
+          sleep 120
+
+      - name: "Install release from Test PyPI"
+        run: |
+          uv venv -p 3.12
+          uv pip install \
+            --index-strategy unsafe-best-match \
+            --refresh-package python-git-bin \
+            --extra-index-url https://test.pypi.org/simple/ \
+            python-git-bin==${{ inputs.package-version }}
+
+      - name: "Check release version"
+        run: |
+          installed=$(uv run python -c "from importlib.metadata import version; print(version('python-git-bin'))")
+          echo "Installed version: $installed"
+          test "$installed" = "${{ inputs.package-version }}"
+
+      - name: "Test git binary"
+        run: |
+          uv run python -c "import python_git_bin; print(python_git_bin.GIT_BIN_DIR)"
+          uv run python -m python_git_bin --version
+
+      - name: "Test uv tool install"
+        run: |
+          uv tool install \
+            --index-strategy unsafe-best-match \
+            --index https://test.pypi.org/simple/ \
+            python-git-bin==${{ inputs.package-version }}
+          git --version

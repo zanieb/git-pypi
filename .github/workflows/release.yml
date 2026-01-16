@@ -1,0 +1,107 @@
+# Build and publish a release.
+name: "Release"
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit SHA to release (default: latest on main)"
+        required: false
+        default: ""
+      build:
+        description: "Build date as YYYYMMDD (default: today)"
+        required: false
+        default: ""
+      publish:
+        description: "Publish to PyPI"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  resolve-ci-run:
+    name: "resolve ci run"
+    runs-on: ubuntu-latest
+    outputs:
+      run-id: ${{ steps.resolve.outputs.run-id }}
+      git-version: ${{ steps.resolve.outputs.git-version }}
+      build: ${{ steps.resolve.outputs.build }}
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - name: "Find CI run and resolve version"
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Resolve commit SHA
+          COMMIT="${{ inputs.commit }}"
+          if [ -z "$COMMIT" ]; then
+            COMMIT=$(gh api repos/${{ github.repository }}/commits/main --jq '.sha')
+            echo "Using latest commit on main: $COMMIT"
+          else
+            echo "Using specified commit: $COMMIT"
+          fi
+
+          # Find CI run for this commit
+          run_id=$(gh run list --repo ${{ github.repository }} --workflow=ci.yml --commit="$COMMIT" --limit=1 --json databaseId --jq '.[0].databaseId')
+          if [ -z "$run_id" ]; then
+            echo "::error::No CI run found for commit $COMMIT"
+            exit 1
+          fi
+
+          # Wait for CI to complete (if still running)
+          echo "Waiting for CI run $run_id to complete..."
+          gh run watch "$run_id" --repo ${{ github.repository }} --exit-status
+
+          echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
+
+          # Verify artifacts are available
+          artifact_count=$(gh api repos/${{ github.repository }}/actions/runs/$run_id/artifacts --jq '.total_count')
+          if [ "$artifact_count" -eq 0 ]; then
+            echo "::error::No artifacts found for CI run $run_id - they may have expired"
+            exit 1
+          fi
+          echo "Found $artifact_count artifacts"
+
+          # Get the git version from the CI workflow file at that commit
+          # The version is defined in the plan job as: GIT_VERSION="x.y.z"
+          git_version=$(gh api repos/${{ github.repository }}/contents/.github/workflows/ci.yml?ref=$COMMIT --jq '.content' | base64 -d | grep 'GIT_VERSION=' | head -1 | sed 's/.*GIT_VERSION="\([^"]*\)".*/\1/')
+          if [ -z "$git_version" ]; then
+            echo "::error::Could not determine git version from commit $COMMIT"
+            exit 1
+          fi
+          echo "git-version=$git_version" >> "$GITHUB_OUTPUT"
+
+          # Resolve build date
+          BUILD="${{ inputs.build }}"
+          if [ -z "$BUILD" ]; then
+            BUILD=$(date -u +%Y%m%d)
+          fi
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+          echo "version=$git_version.$BUILD" >> "$GITHUB_OUTPUT"
+
+          echo "Releasing commit $COMMIT (CI run $run_id, git $git_version) -> version $git_version.$BUILD"
+
+  build-wheels:
+    needs: resolve-ci-run
+    uses: ./.github/workflows/build-wheels.yml
+    with:
+      git-version: ${{ needs.resolve-ci-run.outputs.git-version }}
+      build: ${{ needs.resolve-ci-run.outputs.build }}
+      run-id: ${{ needs.resolve-ci-run.outputs.run-id }}
+
+  test:
+    needs: build-wheels
+    uses: ./.github/workflows/test.yml
+
+  publish:
+    needs: test
+    if: ${{ inputs.publish }}
+    uses: ./.github/workflows/publish-pypi.yml
+    permissions:
+      id-token: write
+      attestations: write
+      contents: read

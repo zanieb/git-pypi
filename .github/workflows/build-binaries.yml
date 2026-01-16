@@ -1,0 +1,106 @@
+# Build Git binaries for all platforms.
+name: "Build binaries"
+
+on:
+  workflow_call:
+    inputs:
+      git-version:
+        description: "Git version to build"
+        required: true
+        type: string
+
+jobs:
+  build-linux:
+    name: "linux on ${{ matrix.arch }}"
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+            target: linux_x86_64
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            target: linux_aarch64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Set up Docker Buildx"
+        uses: docker/setup-buildx-action@v3
+
+      - name: "Build Git in Docker"
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: build/linux/Dockerfile
+          build-args: |
+            GIT_VERSION=${{ inputs.git-version }}
+          tags: git-builder-${{ matrix.arch }}
+          load: true
+          cache-from: type=gha,scope=git-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=git-${{ matrix.arch }}
+
+      - name: "Extract binaries"
+        run: |
+          mkdir -p build/output/${{ matrix.target }}
+          docker run --rm \
+            -v ${{ github.workspace }}/build/output/${{ matrix.target }}:/output \
+            git-builder-${{ matrix.arch }}
+
+      - name: "Verify build"
+        run: |
+          ls -la build/output/${{ matrix.target }}/
+          file build/output/${{ matrix.target }}/bin/git
+
+      - name: "Create tarball"
+        run: |
+          tar -cvf git-${{ matrix.target }}.tar -C build/output/${{ matrix.target }} .
+
+      - name: "Upload binaries"
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.target }}
+          path: git-${{ matrix.target }}.tar
+          if-no-files-found: error
+
+  build-macos:
+    name: "macos on ${{ matrix.arch }}"
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-latest
+            target: macos_arm64
+          - arch: x86_64
+            runner: macos-13
+            target: macos_x86_64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Install dependencies"
+        run: |
+          brew install openssl@3 curl
+
+      - name: "Build Git"
+        run: |
+          chmod +x build/macos/build.sh
+          ./build/macos/build.sh ${{ inputs.git-version }}
+
+      - name: "Verify build"
+        run: |
+          ls -la build/output/${{ matrix.target }}/
+          build/output/${{ matrix.target }}/bin/git --version
+
+      - name: "Create tarball"
+        run: |
+          tar -cvf git-${{ matrix.target }}.tar -C build/output/${{ matrix.target }} .
+
+      - name: "Upload binaries"
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.target }}
+          path: git-${{ matrix.target }}.tar
+          if-no-files-found: error

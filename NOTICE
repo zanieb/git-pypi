@@ -1,0 +1,74 @@
+git-pypi
+Copyright (c) 2026 Zanie Blue
+
+This project is licensed under the Apache License 2.0 and MIT License.
+See LICENSE-APACHE and LICENSE-MIT for details.
+
+================================================================================
+THIRD-PARTY SOFTWARE
+================================================================================
+
+This project redistributes Git binaries, which include the following
+third-party software:
+
+--------------------------------------------------------------------------------
+Git
+--------------------------------------------------------------------------------
+License: GNU General Public License v2 (GPL-2.0)
+Copyright: Various contributors (see Git source code)
+Source: https://github.com/git/git
+License file: licenses/GIT-LICENSE-GPL2
+
+In accordance with GPL v2 Section 3, the complete corresponding source code
+for the Git binaries distributed with this package is available at:
+  https://github.com/git/git
+
+You may also obtain the source code by:
+  - Downloading from https://mirrors.edge.kernel.org/pub/software/scm/git/
+  - Contacting the maintainer of this package
+
+--------------------------------------------------------------------------------
+sha1dc (SHA-1 collision detection)
+--------------------------------------------------------------------------------
+License: MIT
+Copyright (c) 2017 Marc Stevens, Dan Shumow
+Source: https://github.com/cr-marcstevens/sha1collisiondetection
+License file: licenses/SHA1DC-LICENSE-MIT
+
+--------------------------------------------------------------------------------
+reftable
+--------------------------------------------------------------------------------
+License: BSD 3-Clause
+Copyright (c) 2020 Google LLC
+Source: https://github.com/google/reftable (now part of Git)
+License file: licenses/REFTABLE-LICENSE-BSD
+
+================================================================================
+WINDOWS DISTRIBUTION (MinGit)
+================================================================================
+
+Windows wheels use MinGit from the Git for Windows project:
+  https://github.com/git-for-windows/git
+
+Source code for Git for Windows is available at:
+  https://github.com/git-for-windows/git
+
+MinGit bundles additional third-party components with their own licenses.
+These licenses are included in the wheel at:
+  git_bin/git/mingw64/share/licenses/
+  git_bin/git/usr/share/licenses/
+
+Bundled components include (but are not limited to):
+- OpenSSL (Apache 2.0) - https://www.openssl.org
+- curl (MIT-like) - https://curl.se
+- libssh2 (BSD) - https://libssh2.org
+- zlib (zlib license) - https://zlib.net
+- pcre2 (BSD) - https://pcre2project.github.io/pcre2/
+- nghttp2 (MIT) - https://nghttp2.org
+- brotli (MIT) - https://github.com/google/brotli
+- zstd (BSD) - https://github.com/facebook/zstd
+- libiconv (LGPL) - https://www.gnu.org/software/libiconv/
+- gettext (LGPL) - https://www.gnu.org/software/gettext/
+- Git Credential Manager (MIT) - https://github.com/git-ecosystem/git-credential-manager
+
+================================================================================
