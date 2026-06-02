@@ -75,7 +75,7 @@ jobs:
             runner: macos-latest
             target: macos_arm64
           - arch: x86_64
-            runner: macos-13
+            runner: macos-15-intel
             target: macos_x86_64
     steps:
       - uses: actions/checkout@v4
