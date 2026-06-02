@@ -10,11 +10,27 @@ This project builds and packages Git binaries for distribution via PyPI. The res
 
 macOS and Linux wheels are built from source.
 
+By default, those builds use the release tarball for the requested Git version.
+To build from an upstream Git ref or commit instead, pass it as the third
+argument to the platform build script:
+
+```bash
+./build/linux/build.sh 2.54.0 x86_64 HEAD
+./build/macos/build.sh 2.54.0 arm64 0123456789abcdef0123456789abcdef01234567
+```
+
+Moving refs such as `HEAD` are resolved to a full commit before the build. The
+version argument is still used as the base of the wheel version, so choose it
+deliberately when packaging a development build. Windows wheels continue to use
+official Git for Windows releases and cannot be built from an upstream Git
+commit.
+
 ### Prerequisites
 
 - [uv](https://github.com/astral-sh/uv)
 - Docker (for Linux builds)
 - Xcode Command Line Tools (for macOS builds)
+- Rust toolchain with Cargo (for current Git development builds)
 
 ### Windows
 

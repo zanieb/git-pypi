@@ -8,10 +8,39 @@ on:
         description: "Git version to build"
         required: true
         type: string
+      git-source-ref:
+        description: "Git source ref or full commit to build instead of the release tarball (macOS/Linux only)"
+        required: false
+        type: string
+        default: ""
 
 jobs:
+  resolve-git-source:
+    name: "resolve git source"
+    runs-on: ubuntu-latest
+    outputs:
+      git-commit: ${{ steps.resolve.outputs.git-commit }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Resolve Git source ref"
+        id: resolve
+        env:
+          GIT_SOURCE_REF: ${{ inputs.git-source-ref }}
+        run: |
+          if [ -z "$GIT_SOURCE_REF" ]; then
+            echo "Using the Git ${{ inputs.git-version }} release tarball"
+            echo "git-commit=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git_commit=$(./build/resolve_git_ref.sh "$GIT_SOURCE_REF")
+          echo "Resolved Git source ref $GIT_SOURCE_REF to $git_commit"
+          echo "git-commit=$git_commit" >> "$GITHUB_OUTPUT"
+
   build-linux:
     name: "linux on ${{ matrix.arch }}"
+    needs: resolve-git-source
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -36,6 +65,7 @@ jobs:
           file: build/linux/Dockerfile
           build-args: |
             GIT_VERSION=${{ inputs.git-version }}
+            GIT_COMMIT=${{ needs.resolve-git-source.outputs.git-commit }}
           tags: git-builder-${{ matrix.arch }}
           load: true
           cache-from: type=gha,scope=git-${{ matrix.arch }}
@@ -66,6 +96,7 @@ jobs:
 
   build-macos:
     name: "macos on ${{ matrix.arch }}"
+    needs: resolve-git-source
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -83,7 +114,10 @@ jobs:
       - name: "Build Git"
         run: |
           chmod +x build/macos/build.sh
-          ./build/macos/build.sh ${{ inputs.git-version }}
+          ./build/macos/build.sh \
+            ${{ inputs.git-version }} \
+            ${{ matrix.arch }} \
+            "${{ needs.resolve-git-source.outputs.git-commit }}"
 
       - name: "Verify build"
         run: |

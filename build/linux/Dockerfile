@@ -13,7 +13,7 @@
 ARG ALPINE_VERSION=3.19
 FROM alpine:${ALPINE_VERSION} AS builder
 
-# Git version to build
+# Git release version to build when GIT_COMMIT is not set
 ARG GIT_VERSION=2.54.0
 ARG CURL_VERSION=8.11.1
 
@@ -25,6 +25,7 @@ RUN apk add --no-cache \
     zlib-dev \
     zlib-static \
     curl \
+    cargo \
     perl \
     xz
 
@@ -72,10 +73,25 @@ RUN make -j$(nproc) && make install
 RUN cp /usr/lib/libssl.a /usr/lib/libcrypto.a /lib/libz.a ${DEPS_DIR}/lib/ && \
     find ${DEPS_DIR} -name '*.so*' -delete
 
-# Build Git
+# Build Git. Callers should resolve moving refs such as HEAD before passing
+# GIT_COMMIT so the source checkout is keyed by an immutable commit.
+ARG GIT_COMMIT=""
+ARG GIT_SOURCE_REPOSITORY="https://github.com/git/git.git"
+
+RUN if [ -n "${GIT_COMMIT}" ]; then apk add --no-cache git; fi
+
+COPY build/fetch_git_source.sh /usr/local/bin/fetch-git-source
+
+RUN if [ -n "${GIT_COMMIT}" ]; then \
+        GIT_SOURCE_REPOSITORY="${GIT_SOURCE_REPOSITORY}" \
+            /usr/local/bin/fetch-git-source "${GIT_COMMIT}" /src; \
+    else \
+        mkdir -p /src && \
+        curl -fsSL "https://mirrors.edge.kernel.org/pub/software/scm/git/git-${GIT_VERSION}.tar.xz" \
+            | tar -xJ -C /src --strip-components=1; \
+    fi
+
 WORKDIR /src
-RUN curl -fsSL "https://mirrors.edge.kernel.org/pub/software/scm/git/git-${GIT_VERSION}.tar.xz" \
-    | tar -xJ --strip-components=1
 
 # Build Git with static linking
 # Point to our deps directory where only static libraries exist
