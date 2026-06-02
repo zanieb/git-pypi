@@ -6,15 +6,17 @@
 # installation that can be packaged into a Python wheel.
 #
 # Usage:
-#   ./build/macos/build.sh [GIT_VERSION] [ARCH]
+#   ./build/macos/build.sh [GIT_VERSION] [ARCH] [GIT_SOURCE_REF]
 #
 # Examples:
-#   ./build/macos/build.sh 2.54.0           # Build for current architecture
-#   ./build/macos/build.sh 2.54.0 x86_64    # Cross-compile for Intel
-#   ./build/macos/build.sh 2.54.0 arm64     # Cross-compile for Apple Silicon
+#   ./build/macos/build.sh 2.54.0            # Build for current architecture
+#   ./build/macos/build.sh 2.54.0 x86_64     # Cross-compile for Intel
+#   ./build/macos/build.sh 2.54.0 arm64      # Cross-compile for Apple Silicon
+#   ./build/macos/build.sh 2.54.0 arm64 HEAD # Build upstream Git HEAD
 #
 # Prerequisites:
 #   - Xcode Command Line Tools
+#   - Rust toolchain with Cargo (required by current Git development builds)
 #
 # Output: build/output/macos_{arch}/
 
@@ -26,6 +28,12 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 GIT_VERSION="${1:-2.54.0}"
 HOST_ARCH="$(uname -m)"
 ARCH="${2:-$HOST_ARCH}"  # Target architecture, defaults to host
+GIT_SOURCE_REF="${3:-}"
+GIT_COMMIT=""
+
+if [ -n "$GIT_SOURCE_REF" ]; then
+    GIT_COMMIT="$("$PROJECT_ROOT/build/resolve_git_ref.sh" "$GIT_SOURCE_REF")"
+fi
 
 # Validate architecture
 if [[ "$ARCH" != "x86_64" && "$ARCH" != "arm64" ]]; then
@@ -50,6 +58,12 @@ INSTALL_DIR="$BUILD_DIR/install"
 echo "========================================"
 echo "Building Git $GIT_VERSION for macOS $ARCH"
 echo "========================================"
+if [ -n "$GIT_COMMIT" ]; then
+    echo "Git source ref: $GIT_SOURCE_REF"
+    echo "Git source commit: $GIT_COMMIT"
+else
+    echo "Git source: release tarball"
+fi
 echo "Output directory: $OUTPUT_DIR"
 echo ""
 
@@ -63,19 +77,25 @@ fi
 # Create directories
 mkdir -p "$BUILD_DIR" "$OUTPUT_DIR"
 
-# Download Git source if needed
+# Prepare Git source
 GIT_TARBALL="$BUILD_DIR/git-$GIT_VERSION.tar.xz"
 GIT_SRC="$BUILD_DIR/git-$GIT_VERSION"
 
-if [ ! -f "$GIT_TARBALL" ]; then
-    echo "Downloading Git $GIT_VERSION source..."
-    curl -fSL "https://mirrors.edge.kernel.org/pub/software/scm/git/git-$GIT_VERSION.tar.xz" \
-        -o "$GIT_TARBALL"
-fi
+if [ -n "$GIT_COMMIT" ]; then
+    GIT_SRC="$BUILD_DIR/git-source"
+    rm -rf "$GIT_SRC"
+    "$PROJECT_ROOT/build/fetch_git_source.sh" "$GIT_COMMIT" "$GIT_SRC"
+else
+    if [ ! -f "$GIT_TARBALL" ]; then
+        echo "Downloading Git $GIT_VERSION source..."
+        curl -fSL "https://mirrors.edge.kernel.org/pub/software/scm/git/git-$GIT_VERSION.tar.xz" \
+            -o "$GIT_TARBALL"
+    fi
 
-if [ ! -d "$GIT_SRC" ]; then
-    echo "Extracting source..."
-    tar -xf "$GIT_TARBALL" -C "$BUILD_DIR"
+    if [ ! -d "$GIT_SRC" ]; then
+        echo "Extracting source..."
+        tar -xf "$GIT_TARBALL" -C "$BUILD_DIR"
+    fi
 fi
 
 cd "$GIT_SRC"
