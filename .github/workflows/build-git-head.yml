@@ -1,0 +1,28 @@
+# Build upstream Git HEAD regularly and when the build job changes.
+name: "Build Git HEAD"
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-git-head.yml"
+      - ".github/workflows/build-binaries.yml"
+      - "build/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  build-head:
+    name: "build Git HEAD"
+    uses: ./.github/workflows/build-binaries.yml
+    with:
+      git-version: HEAD
+      git-source-ref: HEAD
