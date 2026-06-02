@@ -81,7 +81,7 @@ jobs:
             --platform ${{ matrix.target }}
 
       - name: "Verify no non-system library dependencies"
-        run: uv run scripts/check_macos_wheel.py dist/*.whl
+        run: python scripts/check_macos_wheel.py dist/*.whl
 
       - name: "Upload wheel"
         uses: actions/upload-artifact@v4

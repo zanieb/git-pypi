@@ -80,10 +80,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: "Install dependencies"
-        run: |
-          brew install openssl@3 curl
-
       - name: "Build Git"
         run: |
           chmod +x build/macos/build.sh
