@@ -15,7 +15,6 @@
 #
 # Prerequisites:
 #   - Xcode Command Line Tools
-#   - Optional: openssl, curl (via Homebrew for better HTTPS support)
 #
 # Output: build/output/macos_{arch}/
 
@@ -82,7 +81,9 @@ fi
 cd "$GIT_SRC"
 
 # Set up build flags
-# Use system OpenSSL/LibreSSL on macOS by default
+# Use Apple Common Crypto and the system libcurl provided by the macOS SDK.
+# Do not add package-manager include or library paths: the wheel must remain
+# portable across supported macOS versions.
 # Target macOS versions following python-build-standalone conventions:
 #   - x86_64: 10.15 (Catalina) - last Intel-only macOS
 #   - arm64: 11.0 (Big Sur) - first Apple Silicon macOS
@@ -93,54 +94,31 @@ else
     export MACOSX_DEPLOYMENT_TARGET=10.15
 fi
 
-# Check for Homebrew OpenSSL (preferred for HTTPS)
-# Skip Homebrew libraries when cross-compiling since they're single-arch
-OPENSSL_PREFIX=""
-CURL_PREFIX=""
-
-if [ "$CROSS_COMPILE" = false ]; then
-    if [ -d "/opt/homebrew/opt/openssl@3" ]; then
-        OPENSSL_PREFIX="/opt/homebrew/opt/openssl@3"
-    elif [ -d "/usr/local/opt/openssl@3" ]; then
-        OPENSSL_PREFIX="/usr/local/opt/openssl@3"
-    elif [ -d "/opt/homebrew/opt/openssl@1.1" ]; then
-        OPENSSL_PREFIX="/opt/homebrew/opt/openssl@1.1"
-    elif [ -d "/usr/local/opt/openssl@1.1" ]; then
-        OPENSSL_PREFIX="/usr/local/opt/openssl@1.1"
-    fi
-
-    if [ -d "/opt/homebrew/opt/curl" ]; then
-        CURL_PREFIX="/opt/homebrew/opt/curl"
-    elif [ -d "/usr/local/opt/curl" ]; then
-        CURL_PREFIX="/usr/local/opt/curl"
-    fi
-else
-    echo "Cross-compiling: using system libraries only (no Homebrew)"
+if [ ! -x "/usr/bin/curl-config" ]; then
+    echo "Error: System curl-config not found at /usr/bin/curl-config"
+    exit 1
 fi
+
+echo "Using system libcurl from the macOS SDK"
 
 EXTRA_CFLAGS="-arch $ARCH"
 EXTRA_LDFLAGS="-arch $ARCH"
-EXTRA_MAKE_FLAGS=""
+EXTRA_MAKE_FLAGS=(
+    CURL_CONFIG=/usr/bin/curl-config
+    CURL_CFLAGS=
+    CURL_LDFLAGS=-lcurl
+    NO_DARWIN_PORTS=1
+    NO_FINK=1
+    NO_HOMEBREW=1
+    NO_OPENSSL=1
+)
 
 # For cross-compilation, we need to override CC to always emit the target architecture
 # Just passing CFLAGS isn't enough as git's Makefile autodetection can override them
 CC_CMD="cc"
 if [ "$CROSS_COMPILE" = true ]; then
     CC_CMD="cc -arch $ARCH"
-    EXTRA_MAKE_FLAGS="$EXTRA_MAKE_FLAGS HOST_CPU=$ARCH"
-fi
-
-if [ -n "$OPENSSL_PREFIX" ]; then
-    echo "Using OpenSSL from: $OPENSSL_PREFIX"
-    EXTRA_CFLAGS="$EXTRA_CFLAGS -I$OPENSSL_PREFIX/include"
-    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -L$OPENSSL_PREFIX/lib"
-fi
-
-if [ -n "$CURL_PREFIX" ]; then
-    echo "Using curl from: $CURL_PREFIX"
-    EXTRA_CFLAGS="$EXTRA_CFLAGS -I$CURL_PREFIX/include"
-    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -L$CURL_PREFIX/lib"
-    EXTRA_MAKE_FLAGS="$EXTRA_MAKE_FLAGS CURLDIR=$CURL_PREFIX"
+    EXTRA_MAKE_FLAGS+=(HOST_CPU="$ARCH")
 fi
 
 echo ""
@@ -169,7 +147,7 @@ make -j$(sysctl -n hw.ncpu) \
     NO_INSTALL_HARDLINKS=1 \
     CFLAGS="-O2 $EXTRA_CFLAGS" \
     LDFLAGS="$EXTRA_LDFLAGS" \
-    $EXTRA_MAKE_FLAGS \
+    "${EXTRA_MAKE_FLAGS[@]}" \
     all
 
 echo ""
@@ -187,6 +165,9 @@ make \
     NO_PERL=1 \
     NO_PYTHON=1 \
     NO_INSTALL_HARDLINKS=1 \
+    CFLAGS="-O2 $EXTRA_CFLAGS" \
+    LDFLAGS="$EXTRA_LDFLAGS" \
+    "${EXTRA_MAKE_FLAGS[@]}" \
     DESTDIR="$INSTALL_DIR" \
     install
 
