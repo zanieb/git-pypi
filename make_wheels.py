@@ -13,12 +13,12 @@ This script packages Git binaries as Python wheels:
 - macOS/Linux: Uses pre-built binaries from local build scripts
 
 Wheel versions use format: <git-version>.<build-date>
-  e.g., 2.47.1.20260118 for Git 2.47.1 built on 2026-01-18
+  e.g., 2.54.0.20260118 for Git 2.54.0 built on 2026-01-18
 
 Usage:
-    uv run make_wheels.py --version 2.47.1 --platform win_amd64
-    uv run make_wheels.py --version 2.47.1 --platform all
-    uv run make_wheels.py --version 2.47.1 --platform linux_x86_64 --binary-dir ./build-output
+    uv run make_wheels.py --version 2.54.0 --platform win_amd64
+    uv run make_wheels.py --version 2.54.0 --platform all
+    uv run make_wheels.py --version 2.54.0 --platform linux_x86_64 --binary-dir ./build-output
 """
 
 import argparse
@@ -467,21 +467,21 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    # Build Windows x64 wheel (version: 2.47.1.<today>)
-    uv run make_wheels.py --version 2.47.1 --platform win_amd64
+    # Build Windows x64 wheel (version: 2.54.0.<today>)
+    uv run make_wheels.py --version 2.54.0 --platform win_amd64
 
-    # Build with specific build date (version: 2.47.1.20260115)
-    uv run make_wheels.py --version 2.47.1 --platform win_amd64 --build 20260115
+    # Build with specific build date (version: 2.54.0.20260115)
+    uv run make_wheels.py --version 2.54.0 --platform win_amd64 --build 20260115
 
     # Build from local binaries
-    uv run make_wheels.py --version 2.47.1 --platform linux_x86_64 \\
+    uv run make_wheels.py --version 2.54.0 --platform linux_x86_64 \\
         --binary-dir ./build/output/linux-x86_64
 
     # Build all platforms
-    uv run make_wheels.py --version 2.47.1 --platform all
+    uv run make_wheels.py --version 2.54.0 --platform all
 """,
     )
-    parser.add_argument("--version", required=True, help="Git version to package (e.g., 2.47.1)")
+    parser.add_argument("--version", required=True, help="Git version to package (e.g., 2.54.0)")
     platforms_list = ", ".join(PLATFORM_TAGS.keys())
     parser.add_argument(
         "--platform",

@@ -27,7 +27,7 @@ jobs:
         id: plan
         run: |
           # Git version to build - single source of truth
-          GIT_VERSION="2.47.1"
+          GIT_VERSION="2.54.0"
           echo "git-version=$GIT_VERSION" >> "$GITHUB_OUTPUT"
 
           # Test PyPI needs unique versions, use timestamp-based .dev suffix

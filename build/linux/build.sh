@@ -6,9 +6,9 @@
 #   ./build/linux/build.sh [GIT_VERSION] [ARCH]
 #
 # Examples:
-#   ./build/linux/build.sh 2.47.1              # Build for current architecture
-#   ./build/linux/build.sh 2.47.1 x86_64       # Build for x86_64
-#   ./build/linux/build.sh 2.47.1 aarch64      # Build for ARM64
+#   ./build/linux/build.sh 2.54.0              # Build for current architecture
+#   ./build/linux/build.sh 2.54.0 x86_64       # Build for x86_64
+#   ./build/linux/build.sh 2.54.0 aarch64      # Build for ARM64
 #
 # Output: build/output/linux_{arch}/
 
@@ -17,7 +17,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-GIT_VERSION="${1:-2.47.1}"
+GIT_VERSION="${1:-2.54.0}"
 ARCH="${2:-$(uname -m)}"
 
 # Normalize architecture names

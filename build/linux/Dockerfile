@@ -14,7 +14,7 @@ ARG ALPINE_VERSION=3.19
 FROM alpine:${ALPINE_VERSION} AS builder
 
 # Git version to build
-ARG GIT_VERSION=2.47.1
+ARG GIT_VERSION=2.54.0
 ARG CURL_VERSION=8.11.1
 
 # Install build dependencies (no pcre2 - we use git's built-in regex)
