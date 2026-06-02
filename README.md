@@ -21,9 +21,9 @@ macOS and Linux wheels are built from source.
 Windows wheels download official MinGit builds from [Git for Windows](https://github.com/git-for-windows/git/releases).
 
 ```bash
-uv run make_wheels.py --version 2.47.1 --platform win_amd64
-uv run make_wheels.py --version 2.47.1 --platform win_arm64
-uv run make_wheels.py --version 2.47.1 --platform win32
+uv run make_wheels.py --version 2.54.0 --platform win_amd64
+uv run make_wheels.py --version 2.54.0 --platform win_arm64
+uv run make_wheels.py --version 2.54.0 --platform win32
 ```
 
 ### Linux
@@ -36,10 +36,10 @@ The static build includes:
 - zlib (for compression)
 
 ```bash
-./build/linux/build.sh 2.47.1 x86_64
-./build/linux/build.sh 2.47.1 aarch64
-uv run make_wheels.py --version 2.47.1 --platform linux_x86_64 --binary-dir build/output/linux_x86_64
-uv run make_wheels.py --version 2.47.1 --platform linux_aarch64 --binary-dir build/output/linux_aarch64
+./build/linux/build.sh 2.54.0 x86_64
+./build/linux/build.sh 2.54.0 aarch64
+uv run make_wheels.py --version 2.54.0 --platform linux_x86_64 --binary-dir build/output/linux_x86_64
+uv run make_wheels.py --version 2.54.0 --platform linux_aarch64 --binary-dir build/output/linux_aarch64
 ```
 
 ### macOS
@@ -60,9 +60,9 @@ System libraries used:
 The CI build verifies that no non-system libraries (e.g., Homebrew) are linked. If the build accidentally links against non-system libraries, CI will fail.
 
 ```bash
-./build/macos/build.sh 2.47.1
-uv run make_wheels.py --version 2.47.1 --platform macos_arm64 --binary-dir build/output/macos_arm64
-uv run make_wheels.py --version 2.47.1 --platform macos_x86_64 --binary-dir build/output/macos_x86_64
+./build/macos/build.sh 2.54.0
+uv run make_wheels.py --version 2.54.0 --platform macos_arm64 --binary-dir build/output/macos_arm64
+uv run make_wheels.py --version 2.54.0 --platform macos_x86_64 --binary-dir build/output/macos_x86_64
 ```
 
 ## Supported Platforms
