@@ -26,6 +26,7 @@ RUN apk add --no-cache \
     zlib-static \
     curl \
     cargo \
+    linux-headers \
     perl \
     xz
 
