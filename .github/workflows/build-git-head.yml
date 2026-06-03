@@ -26,3 +26,4 @@ jobs:
     with:
       git-version: HEAD
       git-source-ref: HEAD
+      git-source-name: HEAD
