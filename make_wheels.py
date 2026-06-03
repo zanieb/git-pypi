@@ -262,6 +262,24 @@ def get_git_executable_name(platform):
         return "bin/git"
 
 
+def resolve_binary_dir(binary_dir, platform, *, require_platform_dir=False):
+    """Resolve a direct artifact directory or a child of a shared platform directory."""
+    binary_path = Path(binary_dir)
+    platform_path = binary_path / platform
+    if platform_path.is_dir():
+        return platform_path
+
+    has_platform_subdirs = any(
+        (binary_path / candidate).is_dir()
+        for candidate in PLATFORM_TAGS
+        if not candidate.startswith("win")
+    )
+    if require_platform_dir or has_platform_subdirs:
+        raise ValueError(f"Binary directory not found for {platform}: {platform_path}")
+
+    return binary_path
+
+
 def write_git_wheel(out_dir, *, version, platform, archive_data=None, binary_dir=None):
     """
     Create a Git wheel for the specified platform.
@@ -342,6 +360,10 @@ main()
         binary_path = Path(binary_dir)
         if not binary_path.exists():
             raise ValueError(f"Binary directory not found: {binary_dir}")
+
+        git_executable = binary_path / get_git_executable_name(platform)
+        if not git_executable.is_file():
+            raise ValueError(f"Git executable not found for {platform}: {git_executable}")
 
         for file_path in binary_path.rglob("*"):
             rel_path = file_path.relative_to(binary_path)
@@ -510,6 +532,12 @@ Examples:
     if "all" in platforms:
         platforms = list(PLATFORM_TAGS.keys())
 
+    local_platforms = {
+        platform
+        for platform in platforms
+        if platform in PLATFORM_TAGS and not platform.startswith("win")
+    }
+
     # Create output directory
     out_dir = Path(args.outdir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -533,11 +561,11 @@ Examples:
                 print(f"Skipping {platform}: --binary-dir required for non-Windows platforms")
                 continue
 
-            # Check for platform-specific subdirectory
-            binary_dir = Path(args.binary_dir)
-            platform_dir = binary_dir / platform
-            if platform_dir.exists():
-                binary_dir = platform_dir
+            binary_dir = resolve_binary_dir(
+                args.binary_dir,
+                platform,
+                require_platform_dir=len(local_platforms) > 1,
+            )
 
             build_local_wheel(str(out_dir), wheel_version, platform, str(binary_dir))
 
