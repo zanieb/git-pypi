@@ -1,0 +1,10 @@
+{
+  "curl-8.20.0.tar.xz": {
+    "url": "https://curl.se/download/curl-8.20.0.tar.xz",
+    "sha256": "63fe2dc148ba0ceae89922ef838f7e5c946272c2e78b7c59fab4b79d3ce2b896"
+  },
+  "git-2.54.0.tar.xz": {
+    "url": "https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.54.0.tar.xz",
+    "sha256": "f689162364c10de79ef89aa8dbf48731eb057e34edbbd20aca510ce0154681a3"
+  }
+}
