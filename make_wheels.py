@@ -88,6 +88,14 @@ def read_license_files():
     return {**required_license_files, **discovered_license_files}
 
 
+# Windows MinGit installation directory containing Git's helper executables
+MINGIT_HELPER_DIRS = {
+    "win_amd64": "mingw64",
+    "win_arm64": "clangarm64",
+    "win32": "mingw32",
+}
+
+
 class ReproducibleWheelFile(WheelFile):
     """WheelFile that produces reproducible output."""
 
@@ -320,9 +328,10 @@ def write_git_wheel(out_dir, *, version, platform, archive_data=None, binary_dir
     """
     contents = {}
     python_platform = PLATFORM_TAGS[platform]
+    mingit_helper_dir = MINGIT_HELPER_DIRS[platform] if platform.startswith("win") else "mingw64"
 
     # Create __init__.py
-    contents["python_git_bin/__init__.py"] = b'''"""Git binary distribution package."""
+    contents["python_git_bin/__init__.py"] = f'''"""Git binary distribution package."""
 
 import os
 import subprocess
@@ -337,7 +346,7 @@ GIT_DIR = Path(__file__).parent / 'git'
 # Path to git executable and exec path for helpers
 if sys.platform == 'win32':
     GIT_EXE = GIT_DIR / 'cmd' / 'git.exe'
-    GIT_EXEC_PATH = GIT_DIR / 'mingw64' / 'libexec' / 'git-core'
+    GIT_EXEC_PATH = GIT_DIR / {mingit_helper_dir!r} / 'libexec' / 'git-core'
 else:
     GIT_EXE = GIT_DIR / 'bin' / 'git'
     GIT_EXEC_PATH = GIT_DIR / 'libexec' / 'git-core'
@@ -365,7 +374,7 @@ def main():
     """Run git with command line arguments."""
     env = _get_env()
     sys.exit(subprocess.call([str(GIT_EXE)] + sys.argv[1:], env=env))
-'''
+'''.encode()
 
     # Create __main__.py for python -m python_git_bin support
     contents["python_git_bin/__main__.py"] = b'''"""Allow running as python -m python_git_bin."""
