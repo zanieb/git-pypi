@@ -48,7 +48,10 @@ def test_parse_otool_dependencies() -> None:
 def test_is_system_dependency() -> None:
     assert is_system_dependency("/usr/lib/libcurl.4.dylib")
     assert is_system_dependency("/System/Library/Frameworks/CoreServices.framework/CoreServices")
+    assert is_system_dependency("/usr/lib/./libcurl.4.dylib")
     assert not is_system_dependency("/usr/local/opt/curl/lib/libcurl.4.dylib")
+    assert not is_system_dependency("/usr/lib/../local/libevil.dylib")
+    assert not is_system_dependency("/System/Library/../../usr/local/libevil.dylib")
     assert not is_system_dependency("@rpath/libcurl.4.dylib")
 
 
