@@ -1,9 +1,11 @@
-"""Tests for wheel construction."""
+"""Tests for wheel construction and download verification."""
 
+import hashlib
 import io
 import sys
 from email.parser import BytesParser
 from pathlib import Path
+from typing import Optional
 from zipfile import ZipFile
 
 import pytest
@@ -185,3 +187,79 @@ def test_windows_wrapper_uses_platform_helper_directory(
         assert f"python_git_bin/git/{helper_member}" in wheel.namelist()
 
     assert f"GIT_EXEC_PATH = GIT_DIR / '{helper_dir}' / 'libexec' / 'git-core'" in init_module
+
+
+def test_find_mingit_asset_uses_github_digest() -> None:
+    checksum = "a" * 64
+    release_info = {
+        "assets": [
+            {
+                "name": "MinGit-2.54.0-64-bit.zip",
+                "browser_download_url": "https://example.com/mingit.zip",
+                "digest": f"sha256:{checksum}",
+            }
+        ]
+    }
+
+    asset = make_wheels.find_mingit_asset(release_info, "win_amd64")
+
+    assert asset["sha256"] == checksum
+
+
+@pytest.mark.parametrize(
+    "digest",
+    [
+        None,
+        "sha512:" + "a" * 128,
+        "sha256:short",
+        "sha256:" + "z" * 64,
+    ],
+)
+def test_find_mingit_asset_rejects_missing_or_invalid_digest(digest: Optional[str]) -> None:
+    release_info = {
+        "assets": [
+            {
+                "name": "MinGit-2.54.0-64-bit.zip",
+                "browser_download_url": "https://example.com/mingit.zip",
+                "digest": digest,
+            }
+        ]
+    }
+
+    with pytest.raises(ValueError):
+        make_wheels.find_mingit_asset(release_info, "win_amd64")
+
+
+def test_download_with_checksum_verifies_data(monkeypatch: pytest.MonkeyPatch) -> None:
+    data = b"verified archive"
+    checksum = hashlib.sha256(data).hexdigest()
+    monkeypatch.setattr(
+        make_wheels.urllib.request,
+        "urlopen",
+        lambda request: io.BytesIO(data),
+    )
+
+    assert make_wheels.download_with_checksum("https://example.com/archive.zip", checksum) == data
+
+
+def test_download_with_checksum_rejects_mismatch(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        make_wheels.urllib.request,
+        "urlopen",
+        lambda request: io.BytesIO(b"tampered archive"),
+    )
+
+    with pytest.raises(ValueError, match="SHA256 mismatch"):
+        make_wheels.download_with_checksum("https://example.com/archive.zip", "a" * 64)
+
+
+def test_download_with_checksum_validates_before_download(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_if_called(request):
+        pytest.fail(f"Downloaded before validating checksum: {request.full_url}")
+
+    monkeypatch.setattr(make_wheels.urllib.request, "urlopen", fail_if_called)
+
+    with pytest.raises(ValueError, match="Invalid SHA256 checksum"):
+        make_wheels.download_with_checksum("https://example.com/archive.zip", "")

@@ -217,25 +217,37 @@ def find_mingit_asset(release_info, platform):
 
     for asset in release_info.get("assets", []):
         if regex.search(asset["name"]):
-            # Find corresponding .sha256 file
-            sha256_name = asset["name"] + ".sha256"
-            sha256_url = None
-            for sha_asset in release_info.get("assets", []):
-                if sha_asset["name"] == sha256_name:
-                    sha256_url = sha_asset["browser_download_url"]
-                    break
-
             return {
                 "url": asset["browser_download_url"],
                 "name": asset["name"],
-                "sha256_url": sha256_url,
+                "sha256": parse_sha256_digest(asset.get("digest"), asset["name"]),
             }
 
     raise ValueError(f"MinGit asset not found for platform: {platform}")
 
 
-def download_with_checksum(url, sha256_url=None, expected_sha256=None):
+def parse_sha256_digest(digest, asset_name):
+    """Parse a GitHub release asset SHA256 digest."""
+    if not digest:
+        raise ValueError(f"Missing digest for release asset: {asset_name}")
+
+    algorithm, separator, expected_sha256 = digest.partition(":")
+    if separator != ":" or algorithm.lower() != "sha256":
+        raise ValueError(f"Unsupported digest for release asset {asset_name}: {digest}")
+
+    return validate_sha256(expected_sha256, asset_name)
+
+
+def validate_sha256(expected_sha256, source):
+    """Validate and normalize a SHA256 checksum."""
+    if not re.fullmatch(r"[0-9a-fA-F]{64}", expected_sha256):
+        raise ValueError(f"Invalid SHA256 checksum for {source}: {expected_sha256}")
+    return expected_sha256.lower()
+
+
+def download_with_checksum(url, expected_sha256):
     """Download a file and verify its checksum."""
+    expected_sha256 = validate_sha256(expected_sha256, url)
     print(f"Downloading {url}...")
 
     req = urllib.request.Request(url)
@@ -246,21 +258,10 @@ def download_with_checksum(url, sha256_url=None, expected_sha256=None):
 
     actual_sha256 = hashlib.sha256(data).hexdigest()
 
-    # Get expected checksum
-    if expected_sha256:
-        expected = expected_sha256
-    elif sha256_url:
-        req = urllib.request.Request(sha256_url)
-        req.add_header("User-Agent", "git-bin-wheel-builder")
-        with urllib.request.urlopen(req) as response:
-            # Format is usually "hash  filename" or just "hash"
-            expected = response.read().decode().split()[0].lower()
-    else:
-        print(f"  SHA256: {actual_sha256} (no verification)")
-        return data
-
-    if actual_sha256.lower() != expected.lower():
-        raise ValueError(f"SHA256 mismatch! Expected {expected}, got {actual_sha256}")
+    if actual_sha256 != expected_sha256:
+        raise ValueError(
+            f"SHA256 mismatch! Expected {expected_sha256}, got {actual_sha256}"
+        )
 
     print(f"  SHA256: {actual_sha256} (verified)")
     return data
@@ -488,7 +489,7 @@ def build_windows_wheel(out_dir, git_version, wheel_version, platform):
     print(f"Asset: {asset['name']}")
 
     # Download and verify
-    archive_data = download_with_checksum(asset["url"], sha256_url=asset.get("sha256_url"))
+    archive_data = download_with_checksum(asset["url"], asset["sha256"])
 
     # Create wheel (uses wheel version for package metadata)
     wheel_path = write_git_wheel(

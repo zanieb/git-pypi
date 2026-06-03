@@ -86,11 +86,9 @@ if [ -n "$GIT_COMMIT" ]; then
     rm -rf "$GIT_SRC"
     "$PROJECT_ROOT/build/fetch_git_source.sh" "$GIT_COMMIT" "$GIT_SRC"
 else
-    if [ ! -f "$GIT_TARBALL" ]; then
-        echo "Downloading Git $GIT_VERSION source..."
-        curl -fSL "https://mirrors.edge.kernel.org/pub/software/scm/git/git-$GIT_VERSION.tar.xz" \
-            -o "$GIT_TARBALL"
-    fi
+    echo "Preparing Git $GIT_VERSION source..."
+    uv run --script "$PROJECT_ROOT/build/download_verified.py" \
+        "git-$GIT_VERSION.tar.xz" "$GIT_TARBALL"
 
     if [ ! -d "$GIT_SRC" ]; then
         echo "Extracting source..."

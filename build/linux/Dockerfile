@@ -32,14 +32,22 @@ RUN apk add --no-cache \
     perl \
     xz
 
+COPY --from=ghcr.io/astral-sh/uv:0.11.18@sha256:78bc42400d77b0678ba95765305c826652ed5431f399257271dda681d0318f03 \
+    /uv /uvx /bin/
+
 # Build dependencies in a separate directory to allow removing .so files safely
 # This approach is borrowed from python-build-standalone
 ENV DEPS_DIR=/opt/deps
 
+COPY build/download_verified.py build/sources.json /usr/local/libexec/git-pypi/
+
 # Build curl from source with minimal dependencies (no libidn2, no psl)
 # This avoids symbol conflicts with git's error() function
 WORKDIR /curl-build
-RUN curl -fsSL "https://curl.se/download/curl-${CURL_VERSION}.tar.xz" | tar -xJ --strip-components=1
+RUN uv run --script /usr/local/libexec/git-pypi/download_verified.py \
+        "curl-${CURL_VERSION}.tar.xz" \
+        "/curl-build/curl-${CURL_VERSION}.tar.xz" && \
+    tar -xJf "curl-${CURL_VERSION}.tar.xz" --strip-components=1
 
 RUN ./configure \
     --prefix=${DEPS_DIR} \
@@ -90,8 +98,9 @@ RUN if [ -n "${GIT_COMMIT}" ]; then \
             /usr/local/bin/fetch-git-source "${GIT_COMMIT}" /src; \
     else \
         mkdir -p /src && \
-        curl -fsSL "https://mirrors.edge.kernel.org/pub/software/scm/git/git-${GIT_VERSION}.tar.xz" \
-            | tar -xJ -C /src --strip-components=1; \
+        uv run --script /usr/local/libexec/git-pypi/download_verified.py \
+            "git-${GIT_VERSION}.tar.xz" "/src/git-${GIT_VERSION}.tar.xz" && \
+        tar -xJf "/src/git-${GIT_VERSION}.tar.xz" -C /src --strip-components=1; \
     fi
 
 WORKDIR /src

@@ -12,7 +12,6 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
         "--git-bin",
         action="store",
-        required=True,
         help="Path to the git binary to test",
     )
 
@@ -25,7 +24,11 @@ def pytest_configure(config: pytest.Config) -> None:
 @pytest.fixture(scope="session")
 def git_bin(request: pytest.FixtureRequest) -> Path:
     """Get the git binary path from command-line option."""
-    git_path = Path(request.config.getoption("--git-bin")).resolve()
+    git_bin_option = request.config.getoption("--git-bin")
+    if not git_bin_option:
+        pytest.fail("--git-bin is required for Git binary tests")
+
+    git_path = Path(git_bin_option).resolve()
     if not git_path.exists():
         pytest.fail(f"Git binary not found: {git_path}")
     return git_path
