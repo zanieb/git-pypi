@@ -41,6 +41,7 @@ jobs:
     uses: ./.github/workflows/build-binaries.yml
     with:
       git-version: ${{ needs.plan.outputs.git-version }}
+      git-source-name: ${{ needs.plan.outputs.git-version }}
 
   build-wheels:
     needs: [plan, build-binaries]
