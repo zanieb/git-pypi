@@ -63,6 +63,30 @@ MINGIT_PATTERNS = {
     "win32": r"MinGit-[\d.]+-32-bit\.zip$",
 }
 
+REQUIRED_DISTRIBUTION_LICENSE_FILES = (
+    "LICENSE-APACHE",
+    "LICENSE-MIT",
+    "NOTICE",
+    "licenses/GIT-LICENSE-GPL2",
+    "licenses/REFTABLE-LICENSE-BSD",
+    "licenses/SHA1DC-LICENSE-MIT",
+)
+
+
+def read_license_files():
+    """Read the legal files included in distributions."""
+    project_root = Path(__file__).parent
+    required_license_files = {
+        relative_path: (project_root / relative_path).read_bytes()
+        for relative_path in REQUIRED_DISTRIBUTION_LICENSE_FILES
+    }
+    discovered_license_files = {
+        path.relative_to(project_root).as_posix(): path.read_bytes()
+        for path in sorted((project_root / "licenses").rglob("*"))
+        if path.is_file()
+    }
+    return {**required_license_files, **discovered_license_files}
+
 
 class ReproducibleWheelFile(WheelFile):
     """WheelFile that produces reproducible output."""
@@ -106,10 +130,13 @@ def write_wheel_file(filename, contents):
     return filename
 
 
-def write_wheel(out_dir, *, name, version, tag, metadata, description, contents):
+def write_wheel(
+    out_dir, *, name, version, tag, metadata, description, contents, license_files=None
+):
     """Write a complete wheel with metadata."""
     wheel_name = f"{name}-{version}-{tag}.whl"
     dist_info = f"{name}-{version}.dist-info"
+    license_files = license_files or {}
 
     # Expand compressed tags for WHEEL file
     pytag, abitag, platformtag = tag.split("-")
@@ -124,6 +151,10 @@ def write_wheel(out_dir, *, name, version, tag, metadata, description, contents)
         os.path.join(out_dir, wheel_name),
         {
             **contents,
+            **{
+                f"{dist_info}/licenses/{license_path}": license_contents
+                for license_path, license_contents in license_files.items()
+            },
             f"{dist_info}/entry_points.txt": make_message(
                 [], "[console_scripts]\ngit = python_git_bin:main"
             ),
@@ -133,6 +164,7 @@ def write_wheel(out_dir, *, name, version, tag, metadata, description, contents)
                     ("Name", name),
                     ("Version", version),
                     *metadata,
+                    ("License-File", list(license_files)),
                 ],
                 description,
             ),
@@ -430,6 +462,7 @@ sys.exit(subprocess.call([str(target)] + sys.argv[1:]))
         ],
         description=description,
         contents=contents,
+        license_files=read_license_files(),
     )
 
 

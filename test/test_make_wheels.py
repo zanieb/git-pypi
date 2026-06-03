@@ -1,11 +1,25 @@
-"""Tests for building wheels from local Git artifacts."""
+"""Tests for wheel construction."""
 
+import io
 import sys
+from email.parser import BytesParser
 from pathlib import Path
+from zipfile import ZipFile
 
 import pytest
 
 import make_wheels
+
+PROJECT_ROOT = Path(__file__).parent.parent
+VERSION = "2.54.0.20260603"
+REQUIRED_LICENSE_FILES = [
+    "LICENSE-APACHE",
+    "LICENSE-MIT",
+    "NOTICE",
+    "licenses/GIT-LICENSE-GPL2",
+    "licenses/REFTABLE-LICENSE-BSD",
+    "licenses/SHA1DC-LICENSE-MIT",
+]
 
 
 def test_missing_platform_artifact_does_not_build_wheel(
@@ -70,3 +84,71 @@ def test_multiple_platforms_require_platform_subdirectories(tmp_path: Path) -> N
             "linux_aarch64",
             require_platform_dir=True,
         )
+
+
+def expected_license_files() -> list[str]:
+    """Return required and additionally discovered legal payloads."""
+    discovered = [
+        path.relative_to(PROJECT_ROOT).as_posix()
+        for path in sorted((PROJECT_ROOT / "licenses").rglob("*"))
+        if path.is_file()
+    ]
+    return REQUIRED_LICENSE_FILES + [
+        relative_path for relative_path in discovered if relative_path not in REQUIRED_LICENSE_FILES
+    ]
+
+
+def assert_wheel_includes_license_files(wheel_path: Path) -> None:
+    """Assert a wheel includes and declares every legal payload."""
+    dist_info = f"python_git_bin-{VERSION}.dist-info"
+    license_root = f"{dist_info}/licenses/"
+    expected = expected_license_files()
+
+    with ZipFile(wheel_path) as wheel:
+        included = {
+            name.removeprefix(license_root)
+            for name in wheel.namelist()
+            if name.startswith(license_root)
+        }
+        assert included == set(expected)
+
+        for relative_path in expected:
+            assert wheel.read(f"{license_root}{relative_path}") == (
+                PROJECT_ROOT / relative_path
+            ).read_bytes()
+
+        metadata = BytesParser().parsebytes(wheel.read(f"{dist_info}/METADATA"))
+        assert metadata.get_all("License-File") == expected
+
+
+@pytest.mark.parametrize("platform", ["linux_x86_64", "macos_arm64"])
+def test_local_wheel_includes_license_files(tmp_path: Path, platform: str) -> None:
+    """Linux and macOS wheels include every legal payload."""
+    binary_dir = tmp_path / "git"
+    (binary_dir / "bin").mkdir(parents=True)
+    (binary_dir / "bin" / "git").write_bytes(b"git")
+
+    wheel_path = make_wheels.write_git_wheel(
+        tmp_path,
+        version=VERSION,
+        platform=platform,
+        binary_dir=binary_dir,
+    )
+
+    assert_wheel_includes_license_files(wheel_path)
+
+
+def test_archive_wheel_includes_license_files(tmp_path: Path) -> None:
+    """Archive-based wheels include every legal payload."""
+    archive_data = io.BytesIO()
+    with ZipFile(archive_data, "w") as archive:
+        archive.writestr("cmd/git.exe", b"git")
+
+    wheel_path = make_wheels.write_git_wheel(
+        tmp_path,
+        version=VERSION,
+        platform="win_amd64",
+        archive_data=archive_data.getvalue(),
+    )
+
+    assert_wheel_includes_license_files(wheel_path)
