@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import posixpath
 import re
 import subprocess
 import sys
@@ -64,7 +65,7 @@ def read_dependencies(binary_path: Path) -> list[str]:
 
 def is_system_dependency(dependency: str) -> bool:
     """Return whether a dependency is provided by the macOS system."""
-    return dependency.startswith(SYSTEM_LIBRARY_PREFIXES)
+    return posixpath.normpath(dependency).startswith(SYSTEM_LIBRARY_PREFIXES)
 
 
 def check_wheel(
