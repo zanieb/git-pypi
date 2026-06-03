@@ -27,6 +27,7 @@ jobs:
     name: "resolve ci run"
     runs-on: ubuntu-latest
     outputs:
+      commit: ${{ steps.resolve.outputs.commit }}
       run-id: ${{ steps.resolve.outputs.run-id }}
       git-version: ${{ steps.resolve.outputs.git-version }}
       build: ${{ steps.resolve.outputs.build }}
@@ -36,20 +37,51 @@ jobs:
         id: resolve
         env:
           GH_TOKEN: ${{ github.token }}
+          REQUESTED_BUILD: ${{ inputs.build }}
+          REQUESTED_COMMIT: ${{ inputs.commit }}
         run: |
           # Resolve commit SHA
-          COMMIT="${{ inputs.commit }}"
-          if [ -z "$COMMIT" ]; then
+          if [ -z "$REQUESTED_COMMIT" ]; then
             COMMIT=$(gh api repos/${{ github.repository }}/commits/main --jq '.sha')
             echo "Using latest commit on main: $COMMIT"
           else
+            if [[ ! "$REQUESTED_COMMIT" =~ ^[0-9a-fA-F]{40}$ ]]; then
+              echo "::error::Commit must be a full 40-character SHA"
+              exit 1
+            fi
+            COMMIT=$(gh api repos/${{ github.repository }}/commits/"$REQUESTED_COMMIT" --jq '.sha')
             echo "Using specified commit: $COMMIT"
           fi
 
-          # Find CI run for this commit
-          run_id=$(gh run list --repo ${{ github.repository }} --workflow=ci.yml --commit="$COMMIT" --limit=1 --json databaseId --jq '.[0].databaseId')
-          if [ -z "$run_id" ]; then
-            echo "::error::No CI run found for commit $COMMIT"
+          # Only release commits that are still on main
+          comparison=$(gh api repos/${{ github.repository }}/compare/"$COMMIT"...main --jq '.status')
+          case "$comparison" in
+            ahead|identical) ;;
+            *)
+              echo "::error::Commit $COMMIT is not on main"
+              exit 1
+              ;;
+          esac
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+
+          # Find the push CI run on main for this exact commit
+          run_json=$(gh api --method GET repos/${{ github.repository }}/actions/workflows/ci.yml/runs \
+            -f head_sha="$COMMIT" \
+            -f event=push \
+            -f branch=main \
+            -f per_page=1 \
+            --jq '.workflow_runs[0] // empty')
+          if [ -z "$run_json" ]; then
+            echo "::error::No push CI run on main found for commit $COMMIT"
+            exit 1
+          fi
+
+          run_id=$(jq -r '.id' <<< "$run_json")
+          run_sha=$(jq -r '.head_sha' <<< "$run_json")
+          run_event=$(jq -r '.event' <<< "$run_json")
+          run_branch=$(jq -r '.head_branch' <<< "$run_json")
+          if [ "$run_sha" != "$COMMIT" ] || [ "$run_event" != "push" ] || [ "$run_branch" != "main" ]; then
+            echo "::error::CI run $run_id does not match commit $COMMIT from a push to main"
             exit 1
           fi
 
@@ -57,10 +89,15 @@ jobs:
           echo "Waiting for CI run $run_id to complete..."
           gh run watch "$run_id" --repo ${{ github.repository }} --exit-status
 
+          conclusion=$(gh api repos/${{ github.repository }}/actions/runs/"$run_id" --jq '.conclusion')
+          if [ "$conclusion" != "success" ]; then
+            echo "::error::CI run $run_id did not succeed"
+            exit 1
+          fi
           echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
 
           # Verify artifacts are available
-          artifact_count=$(gh api repos/${{ github.repository }}/actions/runs/$run_id/artifacts --jq '.total_count')
+          artifact_count=$(gh api "repos/${{ github.repository }}/actions/runs/$run_id/artifacts" --jq '.total_count')
           if [ "$artifact_count" -eq 0 ]; then
             echo "::error::No artifacts found for CI run $run_id - they may have expired"
             exit 1
@@ -69,7 +106,7 @@ jobs:
 
           # Get the git version from the CI workflow file at that commit
           # The version is defined in the plan job as: GIT_VERSION="x.y.z"
-          git_version=$(gh api repos/${{ github.repository }}/contents/.github/workflows/ci.yml?ref=$COMMIT --jq '.content' | base64 -d | grep 'GIT_VERSION=' | head -1 | sed 's/.*GIT_VERSION="\([^"]*\)".*/\1/')
+          git_version=$(gh api "repos/${{ github.repository }}/contents/.github/workflows/ci.yml?ref=$COMMIT" --jq '.content' | base64 -d | grep 'GIT_VERSION=' | head -1 | sed 's/.*GIT_VERSION="\([^"]*\)".*/\1/')
           if [ -z "$git_version" ]; then
             echo "::error::Could not determine git version from commit $COMMIT"
             exit 1
@@ -77,9 +114,12 @@ jobs:
           echo "git-version=$git_version" >> "$GITHUB_OUTPUT"
 
           # Resolve build date
-          BUILD="${{ inputs.build }}"
+          BUILD="$REQUESTED_BUILD"
           if [ -z "$BUILD" ]; then
             BUILD=$(date -u +%Y%m%d)
+          elif [[ ! "$BUILD" =~ ^[0-9]{8}$ ]]; then
+            echo "::error::Build must be formatted as YYYYMMDD"
+            exit 1
           fi
           echo "build=$BUILD" >> "$GITHUB_OUTPUT"
           echo "version=$git_version.$BUILD" >> "$GITHUB_OUTPUT"
@@ -90,6 +130,7 @@ jobs:
     needs: resolve-ci-run
     uses: ./.github/workflows/build-wheels.yml
     with:
+      commit: ${{ needs.resolve-ci-run.outputs.commit }}
       git-version: ${{ needs.resolve-ci-run.outputs.git-version }}
       build: ${{ needs.resolve-ci-run.outputs.build }}
       run-id: ${{ needs.resolve-ci-run.outputs.run-id }}
