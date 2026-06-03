@@ -113,9 +113,10 @@ def assert_wheel_includes_license_files(wheel_path: Path) -> None:
         assert included == set(expected)
 
         for relative_path in expected:
-            assert wheel.read(f"{license_root}{relative_path}") == (
-                PROJECT_ROOT / relative_path
-            ).read_bytes()
+            assert (
+                wheel.read(f"{license_root}{relative_path}")
+                == (PROJECT_ROOT / relative_path).read_bytes()
+            )
 
         metadata = BytesParser().parsebytes(wheel.read(f"{dist_info}/METADATA"))
         assert metadata.get_all("License-File") == expected
@@ -152,3 +153,35 @@ def test_archive_wheel_includes_license_files(tmp_path: Path) -> None:
     )
 
     assert_wheel_includes_license_files(wheel_path)
+
+
+@pytest.mark.parametrize(
+    ("platform", "helper_dir"),
+    [
+        ("win_amd64", "mingw64"),
+        ("win_arm64", "clangarm64"),
+        ("win32", "mingw32"),
+    ],
+)
+def test_windows_wrapper_uses_platform_helper_directory(
+    tmp_path: Path, platform: str, helper_dir: str
+) -> None:
+    """The generated GIT_EXEC_PATH points to helpers included by that MinGit build."""
+    archive_data = io.BytesIO()
+    helper_member = f"{helper_dir}/libexec/git-core/git-help.exe"
+    with ZipFile(archive_data, "w") as mingit:
+        mingit.writestr("cmd/git.exe", b"")
+        mingit.writestr(helper_member, b"")
+
+    wheel_path = make_wheels.write_git_wheel(
+        tmp_path,
+        version="1.0.0",
+        platform=platform,
+        archive_data=archive_data.getvalue(),
+    )
+
+    with ZipFile(wheel_path) as wheel:
+        init_module = wheel.read("python_git_bin/__init__.py").decode()
+        assert f"python_git_bin/git/{helper_member}" in wheel.namelist()
+
+    assert f"GIT_EXEC_PATH = GIT_DIR / '{helper_dir}' / 'libexec' / 'git-core'" in init_module
