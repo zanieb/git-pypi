@@ -1,5 +1,5 @@
 # Build upstream Git HEAD regularly and when the build job changes.
-name: "Build Git HEAD"
+name: "CI"
 
 on:
   schedule:
@@ -20,8 +20,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-head:
-    name: "build Git HEAD"
+  build-binaries:
+    name: "build-binaries"
     uses: ./.github/workflows/build-binaries.yml
     with:
       git-version: HEAD

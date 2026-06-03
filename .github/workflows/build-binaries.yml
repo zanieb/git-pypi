@@ -39,7 +39,7 @@ jobs:
           echo "git-commit=$git_commit" >> "$GITHUB_OUTPUT"
 
   build-linux:
-    name: "linux on ${{ matrix.arch }}"
+    name: "linux on ${{ matrix.arch }} / ${{ inputs.git-source-ref || inputs.git-version }}"
     needs: resolve-git-source
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -95,7 +95,7 @@ jobs:
           if-no-files-found: error
 
   build-macos:
-    name: "macos on ${{ matrix.arch }}"
+    name: "macos on ${{ matrix.arch }} / ${{ inputs.git-source-ref || inputs.git-version }}"
     needs: resolve-git-source
     runs-on: ${{ matrix.runner }}
     strategy:
