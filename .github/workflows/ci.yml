@@ -47,6 +47,7 @@ jobs:
     needs: [plan, build-binaries]
     uses: ./.github/workflows/build-wheels.yml
     with:
+      commit: ${{ github.sha }}
       git-version: ${{ needs.plan.outputs.git-version }}
       build: ${{ needs.plan.outputs.build }}
 
