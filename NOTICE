@@ -44,6 +44,43 @@ Source: https://github.com/google/reftable (now part of Git)
 License file: licenses/REFTABLE-LICENSE-BSD
 
 ================================================================================
+LINUX DISTRIBUTION (static build)
+================================================================================
+
+Among the third-party libraries statically linked into the distributed Linux
+Git binaries are:
+
+--------------------------------------------------------------------------------
+curl
+--------------------------------------------------------------------------------
+Version: 8.20.0
+License: curl License
+Copyright (c) 1996 - 2026, Daniel Stenberg, and many contributors
+Source: https://curl.se/download/curl-8.20.0.tar.xz
+License file: licenses/CURL-LICENSE-CURL
+
+--------------------------------------------------------------------------------
+OpenSSL
+--------------------------------------------------------------------------------
+Version: 3.1.8 (Alpine 3.19 package 3.1.8-r1)
+License: Apache License 2.0
+Source: https://github.com/openssl/openssl/releases/download/openssl-3.1.8/openssl-3.1.8.tar.gz
+Alpine package source and patches:
+  https://gitlab.alpinelinux.org/alpine/aports/-/tree/59dc6ad54cd12356f84ae96ea096962101534141/main/openssl
+License file: licenses/OPENSSL-LICENSE-APACHE2
+
+--------------------------------------------------------------------------------
+zlib
+--------------------------------------------------------------------------------
+Version: 1.3.1 (Alpine 3.19 package 1.3.1-r0)
+License: zlib License
+Copyright (C) 1995-2022 Jean-loup Gailly and Mark Adler
+Source: https://zlib.net/fossils/zlib-1.3.1.tar.gz
+Alpine package source:
+  https://gitlab.alpinelinux.org/alpine/aports/-/tree/9406f6fc5fca057d990eb0d260d75839eeb34d83/main/zlib
+License file: licenses/ZLIB-LICENSE-ZLIB
+
+================================================================================
 WINDOWS DISTRIBUTION (MinGit)
 ================================================================================
 

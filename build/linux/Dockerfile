@@ -16,14 +16,16 @@ FROM alpine:${ALPINE_VERSION} AS builder
 # Git release version to build when GIT_COMMIT is not set
 ARG GIT_VERSION=2.54.0
 ARG CURL_VERSION=8.20.0
+ARG OPENSSL_PACKAGE_VERSION=3.1.8-r1
+ARG ZLIB_PACKAGE_VERSION=1.3.1-r0
 
 # Install build dependencies (no pcre2 - we use git's built-in regex)
 RUN apk add --no-cache \
     build-base \
-    openssl-dev \
-    openssl-libs-static \
-    zlib-dev \
-    zlib-static \
+    openssl-dev=${OPENSSL_PACKAGE_VERSION} \
+    openssl-libs-static=${OPENSSL_PACKAGE_VERSION} \
+    zlib-dev=${ZLIB_PACKAGE_VERSION} \
+    zlib-static=${ZLIB_PACKAGE_VERSION} \
     curl \
     cargo \
     linux-headers \
