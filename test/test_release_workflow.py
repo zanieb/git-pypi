@@ -30,7 +30,7 @@ def test_release_inputs_cannot_override_validated_outputs() -> None:
 def test_wheel_sources_are_checked_out_from_explicit_commit() -> None:
     workflow = (WORKFLOWS / "build-wheels.yml").read_text()
 
-    checkout_count = workflow.count("- uses: actions/checkout@v4")
+    checkout_count = workflow.count("- uses: actions/checkout@")
     assert checkout_count == 3
     assert workflow.count("ref: ${{ inputs.commit }}") == checkout_count
 
