@@ -1,0 +1,70 @@
+name: "Actions security"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/actions/**"
+      - ".github/workflows/**"
+      - ".pinact.yaml"
+      - ".pinact.yml"
+      - "action.yml"
+      - "action.yaml"
+      - "zizmor.yaml"
+      - "zizmor.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/actions/**"
+      - ".github/workflows/**"
+      - ".pinact.yaml"
+      - ".pinact.yml"
+      - "action.yml"
+      - "action.yaml"
+      - "zizmor.yaml"
+      - "zizmor.yml"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  pinact:
+    name: "pinact"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: "Check action pins"
+        uses: suzuki-shunsuke/pinact-action@896d595f299e71d65b9d28349d6956abe144390a # v3.0.0
+        with:
+          fix: "false"
+          min_age: "7"
+          verify: "true"
+          verify_min_age: "true"
+
+  zizmor:
+    name: "zizmor"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: "Audit actions"
+        uses: zizmorcore/zizmor-action@5f14fd08f7cf1cb1609c1e344975f152c7ee938d # v0.5.6
+        with:
+          advanced-security: false
+          annotations: true
+          min-severity: low
+          persona: regular
+          version: v1.25.2

@@ -4,10 +4,14 @@ name: "Test"
 on:
   workflow_call:
 
+permissions: {}
+
 jobs:
   test:
     name: "${{ matrix.name }}"
     runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
     env:
       UV_MANAGED_PYTHON: "1"
     strategy:
@@ -39,20 +43,25 @@ jobs:
             wheel_pattern: "*win32*.whl"
             python: "cpython-3.12-windows-x86-none"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
 
-      - uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4.2.0
 
       - name: "Download wheels"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: wheels
           path: dist/
 
       - name: "Install wheel and run tests"
         shell: bash
+        env:
+          WHEEL_PATTERN: ${{ matrix.wheel_pattern }}
         run: |
-          wheel=$(ls dist/${{ matrix.wheel_pattern }} | head -1)
+          wheel=$(find dist -maxdepth 1 -type f -name "$WHEEL_PATTERN" -print -quit)
+          test -n "$wheel"
           echo "Testing: $wheel"
 
           # Create a synchronized project environment with uv-managed Python

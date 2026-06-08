@@ -61,7 +61,6 @@ jobs:
     uses: ./.github/workflows/publish-test-pypi.yml
     with:
       package-version: ${{ needs.plan.outputs.wheel-version }}
-    secrets: inherit
 
   ci-success:
     name: "all required jobs passed"
