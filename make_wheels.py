@@ -13,12 +13,12 @@ This script packages Git binaries as Python wheels:
 - macOS/Linux: Uses pre-built binaries from local build scripts
 
 Wheel versions use format: <git-version>.<build-date>
-  e.g., 2.54.0.20260118 for Git 2.54.0 built on 2026-01-18
+  e.g., 2.56.1.20261124 for Git 2.56.1 built on 2026-11-24
 
 Usage:
-    uv run make_wheels.py --version 2.54.0 --platform win_amd64
-    uv run make_wheels.py --version 2.54.0 --platform all
-    uv run make_wheels.py --version 2.54.0 --platform linux_x86_64 --binary-dir ./build-output
+    uv run make_wheels.py --version 2.56.1 --platform win_amd64
+    uv run make_wheels.py --version 2.56.1 --platform all
+    uv run make_wheels.py --version 2.56.1 --platform linux_x86_64 --binary-dir ./build-output
 """
 
 import argparse
@@ -86,14 +86,6 @@ def read_license_files():
         if path.is_file()
     }
     return {**required_license_files, **discovered_license_files}
-
-
-# Windows MinGit installation directory containing Git's helper executables
-MINGIT_HELPER_DIRS = {
-    "win_amd64": "mingw64",
-    "win_arm64": "clangarm64",
-    "win32": "mingw32",
-}
 
 
 class ReproducibleWheelFile(WheelFile):
@@ -329,10 +321,9 @@ def write_git_wheel(out_dir, *, version, platform, archive_data=None, binary_dir
     """
     contents = {}
     python_platform = PLATFORM_TAGS[platform]
-    mingit_helper_dir = MINGIT_HELPER_DIRS[platform] if platform.startswith("win") else "mingw64"
 
     # Create __init__.py
-    contents["python_git_bin/__init__.py"] = f'''"""Git binary distribution package."""
+    contents["python_git_bin/__init__.py"] = b'''"""Git binary distribution package."""
 
 import os
 import subprocess
@@ -347,7 +338,8 @@ GIT_DIR = Path(__file__).parent / 'git'
 # Path to git executable and exec path for helpers
 if sys.platform == 'win32':
     GIT_EXE = GIT_DIR / 'cmd' / 'git.exe'
-    GIT_EXEC_PATH = GIT_DIR / {mingit_helper_dir!r} / 'libexec' / 'git-core'
+    # MinGit's toolchain directory varies by architecture and release.
+    (GIT_EXEC_PATH,) = GIT_DIR.glob('*/libexec/git-core')
 else:
     GIT_EXE = GIT_DIR / 'bin' / 'git'
     GIT_EXEC_PATH = GIT_DIR / 'libexec' / 'git-core'
@@ -375,7 +367,7 @@ def main():
     """Run git with command line arguments."""
     env = _get_env()
     sys.exit(subprocess.call([str(GIT_EXE)] + sys.argv[1:], env=env))
-'''.encode()
+'''
 
     # Create __main__.py for python -m python_git_bin support
     contents["python_git_bin/__main__.py"] = b'''"""Allow running as python -m python_git_bin."""
@@ -532,21 +524,21 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    # Build Windows x64 wheel (version: 2.54.0.<today>)
-    uv run make_wheels.py --version 2.54.0 --platform win_amd64
+    # Build Windows x64 wheel (version: 2.56.1.<today>)
+    uv run make_wheels.py --version 2.56.1 --platform win_amd64
 
-    # Build with specific build date (version: 2.54.0.20260115)
-    uv run make_wheels.py --version 2.54.0 --platform win_amd64 --build 20260115
+    # Build with specific build date (version: 2.56.1.20261124)
+    uv run make_wheels.py --version 2.56.1 --platform win_amd64 --build 20261124
 
     # Build from local binaries
-    uv run make_wheels.py --version 2.54.0 --platform linux_x86_64 \\
-        --binary-dir ./build/output/linux-x86_64
+    uv run make_wheels.py --version 2.56.1 --platform linux_x86_64 \\
+        --binary-dir ./build/output/linux_x86_64
 
     # Build all platforms
-    uv run make_wheels.py --version 2.54.0 --platform all
+    uv run make_wheels.py --version 2.56.1 --platform all
 """,
     )
-    parser.add_argument("--version", required=True, help="Git version to package (e.g., 2.54.0)")
+    parser.add_argument("--version", required=True, help="Git version to package (e.g., 2.56.1)")
     platforms_list = ", ".join(PLATFORM_TAGS.keys())
     parser.add_argument(
         "--platform",

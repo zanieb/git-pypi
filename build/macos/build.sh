@@ -9,10 +9,10 @@
 #   ./build/macos/build.sh [GIT_VERSION] [ARCH] [GIT_SOURCE_REF]
 #
 # Examples:
-#   ./build/macos/build.sh 2.54.0            # Build for current architecture
-#   ./build/macos/build.sh 2.54.0 x86_64     # Cross-compile for Intel
-#   ./build/macos/build.sh 2.54.0 arm64      # Cross-compile for Apple Silicon
-#   ./build/macos/build.sh 2.54.0 arm64 HEAD # Build upstream Git HEAD
+#   ./build/macos/build.sh 2.56.1            # Build for current architecture
+#   ./build/macos/build.sh 2.56.1 x86_64     # Cross-compile for Intel
+#   ./build/macos/build.sh 2.56.1 arm64      # Cross-compile for Apple Silicon
+#   ./build/macos/build.sh 2.56.1 arm64 HEAD # Build upstream Git HEAD
 #
 # Prerequisites:
 #   - Xcode Command Line Tools
@@ -25,7 +25,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-GIT_VERSION="${1:-2.54.0}"
+GIT_VERSION="${1:-2.56.1}"
 HOST_ARCH="$(uname -m)"
 ARCH="${2:-$HOST_ARCH}"  # Target architecture, defaults to host
 GIT_SOURCE_REF="${3:-}"

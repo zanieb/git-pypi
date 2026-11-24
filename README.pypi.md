@@ -1,4 +1,4 @@
-# git-bin
+# python-git-bin
 
 Git distributed as a Python package.
 
@@ -7,7 +7,7 @@ This package provides [Git](https://git-scm.com), the fast, scalable, distribute
 ## Installation
 
 ```bash
-pip install git-bin
+pip install python-git-bin
 ```
 
 ## Usage
@@ -65,4 +65,4 @@ Git is licensed under [GPL-2.0](https://www.gnu.org/licenses/old-licenses/gpl-2.
 
 - [Git Homepage](https://git-scm.com)
 - [Git Source Code](https://github.com/git/git)
-- [git-bin Source](https://github.com/zanieb/git-pypi)
+- [python-git-bin Source](https://github.com/zanieb/git-pypi)

@@ -60,9 +60,8 @@ jobs:
         run: |
           uv venv -p 3.12
           uv pip install \
-            --index-strategy unsafe-best-match \
             --refresh-package python-git-bin \
-            --extra-index-url https://test.pypi.org/simple/ \
+            --default-index https://test.pypi.org/simple/ \
             "python-git-bin==$PACKAGE_VERSION"
 
       - name: "Check release version"
@@ -72,14 +71,11 @@ jobs:
           test "$installed" = "$PACKAGE_VERSION"
 
       - name: "Test git binary"
-        run: |
-          uv run python -c "import python_git_bin; print(python_git_bin.GIT_BIN_DIR)"
-          uv run python -m python_git_bin --version
+        run: uv run python -m python_git_bin --version
 
       - name: "Test uv tool install"
         run: |
           uv tool install \
-            --index-strategy unsafe-best-match \
-            --index https://test.pypi.org/simple/ \
+            --default-index https://test.pypi.org/simple/ \
             "python-git-bin==$PACKAGE_VERSION"
-          git --version
+          "$(uv tool dir --bin)/git" --version
