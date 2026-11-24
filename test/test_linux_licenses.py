@@ -1,6 +1,7 @@
 """Tests for Linux static dependency license documentation."""
 
 import hashlib
+import json
 from pathlib import Path
 from typing import TypedDict
 
@@ -23,7 +24,7 @@ LINUX_DEPENDENCIES: dict[str, LinuxDependency] = {
     "curl": {
         "version": "8.20.0",
         "pin": "ARG CURL_VERSION=8.20.0",
-        "usage": ['curl -fsSL "https://curl.se/download/curl-${CURL_VERSION}.tar.xz"'],
+        "usage": ["curl-${CURL_VERSION}.tar.xz"],
         "license": "licenses/CURL-LICENSE-CURL",
         "license_sha256": "82f2f4427d6545ee5aaac4f0b80428da6cc8ba41c2cf5da3a03680ec327b9681",
         "license_name": "curl License",
@@ -65,6 +66,9 @@ def test_linux_static_dependency_licenses_are_documented() -> None:
     notice = (PROJECT_ROOT / "NOTICE").read_text()
 
     assert "ARG ALPINE_VERSION=3.19" in dockerfile
+    sources = json.loads((PROJECT_ROOT / "build" / "sources.json").read_text())
+    curl = LINUX_DEPENDENCIES["curl"]
+    assert sources[f"curl-{curl['version']}.tar.xz"]["url"] == curl["source"]
 
     for name, dependency in LINUX_DEPENDENCIES.items():
         license_contents = (PROJECT_ROOT / dependency["license"]).read_bytes()

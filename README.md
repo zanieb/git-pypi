@@ -4,7 +4,7 @@ Python wheels for Git.
 
 ## Overview
 
-This project builds and packages Git binaries for distribution via PyPI. The resulting `git-bin` package allows users to install Git as a Python dependency.
+This project builds and packages Git binaries for distribution via PyPI. The resulting `python-git-bin` package allows users to install Git as a Python dependency.
 
 ## Building Wheels
 
@@ -15,8 +15,8 @@ To build from an upstream Git ref or commit instead, pass it as the third
 argument to the platform build script:
 
 ```bash
-./build/linux/build.sh 2.54.0 x86_64 HEAD
-./build/macos/build.sh 2.54.0 arm64 0123456789abcdef0123456789abcdef01234567
+./build/linux/build.sh 2.56.1 x86_64 HEAD
+./build/macos/build.sh 2.56.1 arm64 0123456789abcdef0123456789abcdef01234567
 ```
 
 Moving refs such as `HEAD` are resolved to a full commit before the build. The
@@ -37,9 +37,9 @@ commit.
 Windows wheels download official MinGit builds from [Git for Windows](https://github.com/git-for-windows/git/releases).
 
 ```bash
-uv run make_wheels.py --version 2.54.0 --platform win_amd64
-uv run make_wheels.py --version 2.54.0 --platform win_arm64
-uv run make_wheels.py --version 2.54.0 --platform win32
+uv run make_wheels.py --version 2.56.1 --platform win_amd64
+uv run make_wheels.py --version 2.56.1 --platform win_arm64
+uv run make_wheels.py --version 2.56.1 --platform win32
 ```
 
 ### Linux
@@ -52,10 +52,10 @@ The static build includes:
 - zlib (for compression)
 
 ```bash
-./build/linux/build.sh 2.54.0 x86_64
-./build/linux/build.sh 2.54.0 aarch64
-uv run make_wheels.py --version 2.54.0 --platform linux_x86_64 --binary-dir build/output/linux_x86_64
-uv run make_wheels.py --version 2.54.0 --platform linux_aarch64 --binary-dir build/output/linux_aarch64
+./build/linux/build.sh 2.56.1 x86_64
+./build/linux/build.sh 2.56.1 aarch64
+uv run make_wheels.py --version 2.56.1 --platform linux_x86_64 --binary-dir build/output/linux_x86_64
+uv run make_wheels.py --version 2.56.1 --platform linux_aarch64 --binary-dir build/output/linux_aarch64
 ```
 
 ### macOS
@@ -76,9 +76,9 @@ System libraries used:
 The CI build verifies that no non-system libraries (e.g., Homebrew) are linked. If the build accidentally links against non-system libraries, CI will fail.
 
 ```bash
-./build/macos/build.sh 2.54.0
-uv run make_wheels.py --version 2.54.0 --platform macos_arm64 --binary-dir build/output/macos_arm64
-uv run make_wheels.py --version 2.54.0 --platform macos_x86_64 --binary-dir build/output/macos_x86_64
+./build/macos/build.sh 2.56.1
+uv run make_wheels.py --version 2.56.1 --platform macos_arm64 --binary-dir build/output/macos_arm64
+uv run make_wheels.py --version 2.56.1 --platform macos_x86_64 --binary-dir build/output/macos_x86_64
 ```
 
 ## Supported Platforms

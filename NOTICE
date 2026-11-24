@@ -92,8 +92,8 @@ Source code for Git for Windows is available at:
 
 MinGit bundles additional third-party components with their own licenses.
 These licenses are included in the wheel at:
-  git_bin/git/mingw64/share/licenses/
-  git_bin/git/usr/share/licenses/
+  python_git_bin/git/{ucrt64,clangarm64,mingw32}/share/licenses/
+  python_git_bin/git/usr/share/licenses/
 
 Bundled components include (but are not limited to):
 - OpenSSL (Apache 2.0) - https://www.openssl.org
