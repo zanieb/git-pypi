@@ -4,7 +4,7 @@
     "sha256": "63fe2dc148ba0ceae89922ef838f7e5c946272c2e78b7c59fab4b79d3ce2b896"
   },
   "git-2.56.1.tar.xz": {
-    "url": "https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.56.1.tar.xz",
+    "url": "https://cdn.kernel.org/pub/software/scm/git/git-2.56.1.tar.xz",
     "sha256": "f0b0bf89264b9bd2e1c640363e7529643989da76281600473c50745cd34a607f"
   }
 }
