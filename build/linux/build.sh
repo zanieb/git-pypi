@@ -6,10 +6,10 @@
 #   ./build/linux/build.sh [GIT_VERSION] [ARCH] [GIT_SOURCE_REF]
 #
 # Examples:
-#   ./build/linux/build.sh 2.54.0              # Build for current architecture
-#   ./build/linux/build.sh 2.54.0 x86_64       # Build for x86_64
-#   ./build/linux/build.sh 2.54.0 aarch64      # Build for ARM64
-#   ./build/linux/build.sh 2.54.0 x86_64 HEAD  # Build upstream Git HEAD
+#   ./build/linux/build.sh 2.56.1              # Build for current architecture
+#   ./build/linux/build.sh 2.56.1 x86_64       # Build for x86_64
+#   ./build/linux/build.sh 2.56.1 aarch64      # Build for ARM64
+#   ./build/linux/build.sh 2.56.1 x86_64 HEAD  # Build upstream Git HEAD
 #
 # Output: build/output/linux_{arch}/
 
@@ -18,7 +18,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-GIT_VERSION="${1:-2.54.0}"
+GIT_VERSION="${1:-2.56.1}"
 ARCH="${2:-$(uname -m)}"
 GIT_SOURCE_REF="${3:-}"
 GIT_SOURCE_REPOSITORY="${GIT_SOURCE_REPOSITORY:-https://github.com/git/git.git}"

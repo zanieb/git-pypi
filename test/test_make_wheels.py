@@ -2,6 +2,7 @@
 
 import hashlib
 import io
+import runpy
 import sys
 from email.parser import BytesParser
 from pathlib import Path
@@ -161,12 +162,13 @@ def test_archive_wheel_includes_license_files(tmp_path: Path) -> None:
     ("platform", "helper_dir"),
     [
         ("win_amd64", "mingw64"),
+        ("win_amd64", "ucrt64"),
         ("win_arm64", "clangarm64"),
         ("win32", "mingw32"),
     ],
 )
 def test_windows_wrapper_uses_platform_helper_directory(
-    tmp_path: Path, platform: str, helper_dir: str
+    tmp_path: Path, platform: str, helper_dir: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The generated GIT_EXEC_PATH points to helpers included by that MinGit build."""
     archive_data = io.BytesIO()
@@ -183,10 +185,12 @@ def test_windows_wrapper_uses_platform_helper_directory(
     )
 
     with ZipFile(wheel_path) as wheel:
-        init_module = wheel.read("python_git_bin/__init__.py").decode()
-        assert f"python_git_bin/git/{helper_member}" in wheel.namelist()
+        wheel.extractall(tmp_path)
 
-    assert f"GIT_EXEC_PATH = GIT_DIR / '{helper_dir}' / 'libexec' / 'git-core'" in init_module
+    monkeypatch.setattr(sys, "platform", "win32")
+    package = runpy.run_path(str(tmp_path / "python_git_bin" / "__init__.py"))
+    assert package["GIT_EXE"].is_file()
+    assert (package["GIT_EXEC_PATH"] / "git-help.exe").is_file()
 
 
 def test_find_mingit_asset_uses_github_digest() -> None:
