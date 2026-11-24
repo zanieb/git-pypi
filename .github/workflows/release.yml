@@ -128,7 +128,7 @@ jobs:
 
   build-wheels:
     needs: resolve-ci-run
-    uses: ./.github/workflows/build-wheels.yml
+    uses: $/.github/workflows/build-wheels.yml
     with:
       commit: ${{ needs.resolve-ci-run.outputs.commit }}
       git-version: ${{ needs.resolve-ci-run.outputs.git-version }}
@@ -137,12 +137,12 @@ jobs:
 
   test:
     needs: build-wheels
-    uses: ./.github/workflows/test.yml
+    uses: $/.github/workflows/test.yml
 
   publish:
     needs: test
     if: ${{ inputs.publish }}
-    uses: ./.github/workflows/publish-pypi.yml
+    uses: $/.github/workflows/publish-pypi.yml
     permissions:
       id-token: write
       attestations: write

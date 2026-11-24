@@ -23,10 +23,15 @@ on:
         type: string
         default: ""
 
+permissions: {}
+
 jobs:
   build-macos-wheels:
     name: "macos wheels on ${{ matrix.arch }}"
     runs-on: ${{ matrix.runner }}
+    permissions:
+      actions: read
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -38,19 +43,20 @@ jobs:
             runner: macos-15-intel
             target: macos_x86_64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
+          persist-credentials: false
           ref: ${{ inputs.commit }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
 
-      - uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4.2.0
 
       - name: "Download binary artifacts (from current run)"
         if: ${{ !inputs.run-id }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: binaries-${{ matrix.target }}
           path: build/output/
@@ -59,15 +65,18 @@ jobs:
         if: ${{ inputs.run-id }}
         env:
           GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ inputs.run-id }}
+          TARGET: ${{ matrix.target }}
         run: |
-          gh run download ${{ inputs.run-id }} --repo ${{ github.repository }} --name 'binaries-${{ matrix.target }}' --dir build/output/
+          gh run download "$RUN_ID" --repo "$REPOSITORY" --name "binaries-$TARGET" --dir build/output/
 
       - name: "Extract tarball"
         run: |
           cd build/output
           mkdir -p ${{ matrix.target }}
-          tar -xvf *.tar -C ${{ matrix.target }}
-          rm -f *.tar
+          tar -xvf ./*.tar -C ${{ matrix.target }}
+          rm -f ./*.tar
           ls -la ${{ matrix.target }}/
 
       - name: "Show library dependencies before delocate"
@@ -79,18 +88,26 @@ jobs:
           otool -L build/output/${{ matrix.target }}/libexec/git-core/git-remote-https || true
 
       - name: "Build wheel"
+        env:
+          BUILD: ${{ inputs.build }}
+          GIT_VERSION: ${{ inputs.git-version }}
+          TARGET: ${{ matrix.target }}
         run: |
+          build_args=()
+          if [ -n "$BUILD" ]; then
+            build_args=(--build "$BUILD")
+          fi
           uv run make_wheels.py \
-            --version ${{ inputs.git-version }} \
-            ${{ inputs.build && format('--build {0}', inputs.build) || '' }} \
+            --version "$GIT_VERSION" \
+            "${build_args[@]}" \
             --binary-dir build/output \
-            --platform ${{ matrix.target }}
+            --platform "$TARGET"
 
       - name: "Verify no non-system library dependencies"
         run: python scripts/check_macos_wheel.py dist/*.whl
 
       - name: "Upload wheel"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: wheel-${{ matrix.target }}
           path: dist/*.whl
@@ -99,20 +116,24 @@ jobs:
   build-linux-wheels:
     name: "linux wheels"
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
+          persist-credentials: false
           ref: ${{ inputs.commit }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
 
-      - uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4.2.0
 
       - name: "Download binary artifacts (from current run)"
         if: ${{ !inputs.run-id }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: build/output/
           pattern: binaries-linux_*
@@ -122,8 +143,10 @@ jobs:
         if: ${{ inputs.run-id }}
         env:
           GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ inputs.run-id }}
         run: |
-          gh run download ${{ inputs.run-id }} --repo ${{ github.repository }} --pattern 'binaries-linux_*' --dir build/output/
+          gh run download "$RUN_ID" --repo "$REPOSITORY" --pattern 'binaries-linux_*' --dir build/output/
 
       - name: "Extract tarballs"
         run: |
@@ -137,16 +160,23 @@ jobs:
           ls -la
 
       - name: "Build Linux wheels"
+        env:
+          BUILD: ${{ inputs.build }}
+          GIT_VERSION: ${{ inputs.git-version }}
         run: |
+          build_args=()
+          if [ -n "$BUILD" ]; then
+            build_args=(--build "$BUILD")
+          fi
           uv run make_wheels.py \
-            --version ${{ inputs.git-version }} \
-            ${{ inputs.build && format('--build {0}', inputs.build) || '' }} \
+            --version "$GIT_VERSION" \
+            "${build_args[@]}" \
             --binary-dir build/output \
             --platform linux_x86_64 \
             --platform linux_aarch64
 
       - name: "Upload wheels"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: wheels-linux
           path: dist/*.whl
@@ -155,28 +185,38 @@ jobs:
   build-windows-wheels:
     name: "windows wheels"
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
+          persist-credentials: false
           ref: ${{ inputs.commit }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
 
-      - uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4.2.0
 
       - name: "Build Windows wheels"
+        env:
+          BUILD: ${{ inputs.build }}
+          GIT_VERSION: ${{ inputs.git-version }}
         run: |
+          build_args=()
+          if [ -n "$BUILD" ]; then
+            build_args=(--build "$BUILD")
+          fi
           uv run make_wheels.py \
-            --version ${{ inputs.git-version }} \
-            ${{ inputs.build && format('--build {0}', inputs.build) || '' }} \
+            --version "$GIT_VERSION" \
+            "${build_args[@]}" \
             --platform win_amd64 \
             --platform win_arm64 \
             --platform win32
 
       - name: "Upload wheels"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: wheels-windows
           path: dist/*.whl
@@ -188,7 +228,7 @@ jobs:
     needs: [build-macos-wheels, build-linux-wheels, build-windows-wheels]
     steps:
       - name: "Download all wheel artifacts"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: wheels/
           pattern: wheel*
@@ -204,7 +244,7 @@ jobs:
           done
 
       - name: "Upload merged wheels"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: wheels
           path: wheels/*.whl

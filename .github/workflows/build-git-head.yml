@@ -22,7 +22,7 @@ concurrency:
 jobs:
   build-binaries:
     name: "build-binaries"
-    uses: ./.github/workflows/build-binaries.yml
+    uses: $/.github/workflows/build-binaries.yml
     with:
       git-version: HEAD
       git-source-ref: HEAD

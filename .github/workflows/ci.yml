@@ -37,14 +37,17 @@ jobs:
 
   build-binaries:
     needs: plan
-    uses: ./.github/workflows/build-binaries.yml
+    uses: $/.github/workflows/build-binaries.yml
     with:
       git-version: ${{ needs.plan.outputs.git-version }}
       git-source-name: ${{ needs.plan.outputs.git-version }}
 
   build-wheels:
     needs: [plan, build-binaries]
-    uses: ./.github/workflows/build-wheels.yml
+    permissions:
+      actions: read
+      contents: read
+    uses: $/.github/workflows/build-wheels.yml
     with:
       commit: ${{ github.sha }}
       git-version: ${{ needs.plan.outputs.git-version }}
@@ -52,15 +55,14 @@ jobs:
 
   test:
     needs: build-wheels
-    uses: ./.github/workflows/test.yml
+    uses: $/.github/workflows/test.yml
 
   publish-test-pypi:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [plan, test]
-    uses: ./.github/workflows/publish-test-pypi.yml
+    uses: $/.github/workflows/publish-test-pypi.yml
     with:
       package-version: ${{ needs.plan.outputs.wheel-version }}
-    secrets: inherit
 
   ci-success:
     name: "all required jobs passed"
