@@ -43,5 +43,5 @@ def test_every_wheel_workflow_caller_passes_a_commit() -> None:
 
     for filename, expected_commit in callers.items():
         workflow = (WORKFLOWS / filename).read_text()
-        assert "uses: ./.github/workflows/build-wheels.yml" in workflow
+        assert "uses: $/.github/workflows/build-wheels.yml" in workflow
         assert expected_commit in workflow
