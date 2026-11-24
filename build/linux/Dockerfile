@@ -109,7 +109,7 @@ WORKDIR /src
 # Point to our deps directory where only static libraries exist
 RUN make -j$(nproc) \
     prefix=/usr \
-    gitexecdir=/usr/libexec/git-core \
+    RUNTIME_PREFIX=YesPlease \
     NO_GETTEXT=1 \
     NO_TCLTK=1 \
     NO_PERL=1 \
@@ -126,7 +126,7 @@ RUN make -j$(nproc) \
 # Install to staging directory (need to pass same flags as build)
 RUN make -j$(nproc) \
     prefix=/usr \
-    gitexecdir=/usr/libexec/git-core \
+    RUNTIME_PREFIX=YesPlease \
     NO_GETTEXT=1 \
     NO_TCLTK=1 \
     NO_PERL=1 \

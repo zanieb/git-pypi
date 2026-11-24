@@ -61,14 +61,17 @@ jobs:
 
           # Create a synchronized project environment with uv-managed Python
           uv sync --locked --python "${{ matrix.python }}"
-          uv pip install "$wheel"
+          # Exercise pip's handling of executable permissions on Unix too.
+          if [ "${{ matrix.name }}" = "manylinux_x86_64" ]; then
+            uv run --no-sync python -m ensurepip
+            uv run --no-sync python -m pip install --no-index "$wheel"
+          else
+            uv pip install "$wheel"
+          fi
 
           # Get the git binary path from the installed package
-          git_bin=$(uv run --locked python -c "import python_git_bin; print(python_git_bin.GIT_EXE)")
+          git_bin=$(uv run --no-sync python -c "import python_git_bin; print(python_git_bin.GIT_EXE)")
           echo "Git binary: $git_bin"
 
-          # Verify the wrapper points Git at helpers included in the wheel
-          uv run --locked python -c "import python_git_bin; assert python_git_bin.GIT_EXEC_PATH.is_dir(), python_git_bin.GIT_EXEC_PATH"
-
           # Run tests
-          uv run --locked python -m pytest test/ --git-bin "$git_bin" -v
+          uv run --no-sync python -m pytest test/ --git-bin "$git_bin" -v

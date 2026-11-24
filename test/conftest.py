@@ -1,5 +1,6 @@
 """Pytest configuration and shared fixtures for git-bin tests."""
 
+import os
 import subprocess
 from pathlib import Path
 from typing import Callable
@@ -32,6 +33,19 @@ def git_bin(request: pytest.FixtureRequest) -> Path:
     if not git_path.exists():
         pytest.fail(f"Git binary not found: {git_path}")
     return git_path
+
+
+@pytest.fixture
+def isolated_git_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep host Git configuration and helpers out of wheel tests."""
+    monkeypatch.delenv("GIT_EXEC_PATH", raising=False)
+    monkeypatch.delenv("GIT_TEMPLATE_DIR", raising=False)
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    if os.name != "nt":
+        empty = tmp_path / "empty-bin"
+        empty.mkdir()
+        monkeypatch.setenv("PATH", str(empty))
 
 
 @pytest.fixture

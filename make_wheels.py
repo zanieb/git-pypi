@@ -32,6 +32,7 @@ import stat
 import tarfile
 import urllib.error
 import urllib.request
+from collections.abc import Iterator
 from datetime import datetime, timezone
 from email.message import EmailMessage
 from pathlib import Path
@@ -313,6 +314,38 @@ def resolve_binary_dir(binary_dir, platform, *, require_platform_dir=False):
     return binary_path
 
 
+def local_git_files(binary_path: Path) -> Iterator[tuple[ZipInfo, bytes]]:
+    """Collect the Unix installation, replacing executable aliases with regular files."""
+    for path in sorted(binary_path.rglob("*")):
+        relative = path.relative_to(binary_path)
+        if path.is_symlink():
+            # Wheel installers do not recreate symlinks. Git dispatches built-ins
+            # internally, but local transports invoke these dashed names directly.
+            target = os.readlink(path)
+            if target == "git":
+                if path.name not in {"git-upload-pack", "git-receive-pack", "git-upload-archive"}:
+                    continue
+                command = '"${0%/*}/git" ' + path.name.removeprefix("git-")
+            elif target == "git-remote-http":
+                command = '"${0%/*}/git-remote-http"'
+            else:
+                raise ValueError(f"Unexpected Git symlink: {relative} -> {target}")
+            data = f'#!/bin/sh\nexec {command} "$@"\n'.encode()
+        elif path.is_file():
+            data = path.read_bytes()
+        else:
+            continue
+
+        info = ZipInfo(f"python_git_bin/git/{relative.as_posix()}")
+        # pip requires the regular-file flag as well as the executable bit.
+        if relative.parts[0] in {"bin", "libexec"}:
+            mode = stat.S_IFREG | 0o755
+        else:
+            mode = path.stat().st_mode
+        info.external_attr = (mode & 0xFFFF) << 16
+        yield info, data
+
+
 def write_git_wheel(out_dir, *, version, platform, archive_data=None, binary_dir=None):
     """
     Create a Git wheel for the specified platform.
@@ -322,58 +355,9 @@ def write_git_wheel(out_dir, *, version, platform, archive_data=None, binary_dir
     contents = {}
     python_platform = PLATFORM_TAGS[platform]
 
-    # Create __init__.py
-    contents["python_git_bin/__init__.py"] = b'''"""Git binary distribution package."""
-
-import os
-import subprocess
-import sys
-from pathlib import Path
-
-__all__ = ['GIT_DIR', 'GIT_EXE', 'GIT_EXEC_PATH', 'main', 'run']
-
-# Directory containing git installation
-GIT_DIR = Path(__file__).parent / 'git'
-
-# Path to git executable and exec path for helpers
-if sys.platform == 'win32':
-    GIT_EXE = GIT_DIR / 'cmd' / 'git.exe'
-    # MinGit's toolchain directory varies by architecture and release.
-    (GIT_EXEC_PATH,) = GIT_DIR.glob('*/libexec/git-core')
-else:
-    GIT_EXE = GIT_DIR / 'bin' / 'git'
-    GIT_EXEC_PATH = GIT_DIR / 'libexec' / 'git-core'
-
-
-def _get_env():
-    """Get environment with GIT_EXEC_PATH set."""
-    env = os.environ.copy()
-    env['GIT_EXEC_PATH'] = str(GIT_EXEC_PATH)
-    # Also set template dir for init/clone operations
-    template_dir = GIT_DIR / 'share' / 'git-core' / 'templates'
-    if template_dir.exists():
-        env['GIT_TEMPLATE_DIR'] = str(template_dir)
-    return env
-
-
-def run(*args, **kwargs):
-    """Run git with given arguments. Returns CompletedProcess."""
-    cmd = [str(GIT_EXE)] + list(args)
-    kwargs.setdefault('env', _get_env())
-    return subprocess.run(cmd, **kwargs)
-
-
-def main():
-    """Run git with command line arguments."""
-    env = _get_env()
-    sys.exit(subprocess.call([str(GIT_EXE)] + sys.argv[1:], env=env))
-'''
-
-    # Create __main__.py for python -m python_git_bin support
-    contents["python_git_bin/__main__.py"] = b'''"""Allow running as python -m python_git_bin."""
-from python_git_bin import main
-main()
-'''
+    package_dir = Path(__file__).parent / "src" / "python_git_bin"
+    for filename in ("__init__.py", "__main__.py"):
+        contents[f"python_git_bin/{filename}"] = (package_dir / filename).read_bytes()
 
     # Process archive contents
     if archive_data:
@@ -399,40 +383,7 @@ main()
         if not git_executable.is_file():
             raise ValueError(f"Git executable not found for {platform}: {git_executable}")
 
-        for file_path in binary_path.rglob("*"):
-            rel_path = file_path.relative_to(binary_path)
-            zip_info = ZipInfo(f"python_git_bin/git/{rel_path}")
-
-            if file_path.is_symlink():
-                target = os.readlink(file_path)
-                # Symlinks to 'git' are not needed - git dispatches internally via argv[0]
-                if target == "git":
-                    continue
-                # For symlinks to other targets (like git-remote-https -> git-remote-http),
-                # create a tiny Python shim instead of copying the whole binary. Python
-                # shims are cross-platform and consistent with how pip generates entry points.
-                shim_script = f"""#!/usr/bin/env python3
-import subprocess
-import sys
-from pathlib import Path
-target = Path(__file__).parent / {target!r}
-sys.exit(subprocess.call([str(target)] + sys.argv[1:]))
-"""
-                zip_info.external_attr = (0o0755) << 16
-                contents[zip_info] = shim_script.encode("utf-8")
-            elif file_path.is_file():
-                # Determine file permissions
-                # Executables in bin/ and libexec/ should always have execute permissions
-                # even if source files lost them during tar extraction
-                rel_str = str(rel_path)
-                if rel_str.startswith("bin/") or rel_str.startswith("libexec/"):
-                    # Executable: rwxr-xr-x
-                    mode = stat.S_IFREG | 0o755
-                else:
-                    # Preserve original permissions
-                    mode = file_path.stat().st_mode
-                zip_info.external_attr = (mode & 0xFFFF) << 16
-                contents[zip_info] = file_path.read_bytes()
+        contents.update(local_git_files(binary_path))
     else:
         raise ValueError("Either archive_data or binary_dir must be provided")
 

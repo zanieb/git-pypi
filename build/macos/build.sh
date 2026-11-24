@@ -157,7 +157,7 @@ find . -name '*.a' -delete 2>/dev/null || true
 make -j$(sysctl -n hw.ncpu) \
     CC="$CC_CMD" \
     prefix=/usr/local \
-    gitexecdir=/usr/local/libexec/git-core \
+    RUNTIME_PREFIX=YesPlease \
     NO_GETTEXT=1 \
     NO_TCLTK=1 \
     NO_PERL=1 \
@@ -177,7 +177,7 @@ mkdir -p "$INSTALL_DIR"
 make \
     CC="$CC_CMD" \
     prefix=/usr/local \
-    gitexecdir=/usr/local/libexec/git-core \
+    RUNTIME_PREFIX=YesPlease \
     NO_GETTEXT=1 \
     NO_TCLTK=1 \
     NO_PERL=1 \

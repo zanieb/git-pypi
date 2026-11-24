@@ -178,6 +178,7 @@ class TestGitVersion:
 
 
 @pytest.mark.network
+@pytest.mark.usefixtures("isolated_git_env")
 class TestGitClone:
     """Tests for git clone command (requires network)."""
 
