@@ -27,13 +27,13 @@ python -m python_git_bin --version
 ### Programmatic Usage
 
 ```python
-from python_git_bin import run
+from python_git_bin import git
 
-result = run("status", check=True, capture_output=True, text=True)
+result = git("status", check=True, capture_output=True, text=True)
 print(result.stdout)
 ```
 
-`run` accepts the same keyword arguments as `subprocess.run`. You can also pass
+`git` accepts the same keyword arguments as `subprocess.run`. You can also pass
 `python_git_bin.GIT_EXE` directly to tools that need the path to Git. The binary
 locates its bundled helpers and templates without activating a virtual environment.
 

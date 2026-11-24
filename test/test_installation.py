@@ -32,7 +32,7 @@ class TestGitBinary:
 def test_installed_entry_points(
     git_bin: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from python_git_bin import GIT_EXE, GIT_EXEC_PATH, run
+    from python_git_bin import GIT_EXE, GIT_EXEC_PATH, git
 
     assert GIT_EXE.samefile(git_bin)
     assert GIT_EXEC_PATH.is_dir()
@@ -45,7 +45,7 @@ def test_installed_entry_points(
     template.mkdir()
     (template / "marker").touch()
     monkeypatch.setenv("GIT_TEMPLATE_DIR", str(template))
-    run("init", cwd=tmp_path, check=True)
+    git("init", cwd=tmp_path, check=True)
     assert (tmp_path / ".git" / "marker").is_file()
 
 
